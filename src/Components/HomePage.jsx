@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import logo_horizontal from "./assests/logo_horizontal.png"
 
 export default function HomePage({ cartItems, cartCount, addToCart, goToCheckout }) {
   const [notification, setNotification] = useState(null);
@@ -7,17 +6,25 @@ export default function HomePage({ cartItems, cartCount, addToCart, goToCheckout
   const [showImageModal, setShowImageModal] = useState(false);
   const [showCartModal, setShowCartModal] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(1);
+  const [panPosition, setPanPosition] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [hasDragged, setHasDragged] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [lastAddedProduct, setLastAddedProduct] = useState(null);
 
   const handleAddToCart = (product) => {
     addToCart({
       name: product.name,
       price: product.price,
+      originalPrice: product.originalPrice,
+      discount: product.discount,
       image: product.image
     });
     setLastAddedProduct({ 
       name: product.name, 
       price: product.price,
+      originalPrice: product.originalPrice,
+      discount: product.discount,
       image: product.image 
     });
     setShowCartModal(true);
@@ -27,12 +34,16 @@ export default function HomePage({ cartItems, cartCount, addToCart, goToCheckout
     setSelectedProduct(product);
     setShowImageModal(true);
     setZoomLevel(1);
+    setPanPosition({ x: 0, y: 0 });
+    setHasDragged(false);
   };
 
   const closeImageModal = () => {
     setShowImageModal(false);
     setSelectedProduct(null);
     setZoomLevel(1);
+    setPanPosition({ x: 0, y: 0 });
+    setHasDragged(false);
   };
 
   const closeCartModal = () => {
@@ -68,7 +79,60 @@ export default function HomePage({ cartItems, cartCount, addToCart, goToCheckout
   };
 
   const zoomOut = () => {
-    setZoomLevel(prev => Math.max(prev - 0.3, 1));
+    const newZoom = Math.max(zoomLevel - 0.3, 1);
+    setZoomLevel(newZoom);
+    if (newZoom === 1) {
+      setPanPosition({ x: 0, y: 0 });
+    }
+  };
+
+  const handleWheel = (e) => {
+    e.preventDefault();
+    const delta = e.deltaY * -0.001;
+    const newZoom = Math.min(Math.max(zoomLevel + delta, 1), 3);
+    setZoomLevel(newZoom);
+    if (newZoom === 1) {
+      setPanPosition({ x: 0, y: 0 });
+    }
+  };
+
+  const handleImageClick = (e) => {
+    // Only zoom if user didn't drag
+    if (!hasDragged) {
+      // Toggle zoom: if at 1x, zoom to 2x, if zoomed, zoom out to 1x
+      if (zoomLevel === 1) {
+        setZoomLevel(2);
+      } else {
+        setZoomLevel(1);
+        setPanPosition({ x: 0, y: 0 });
+      }
+    }
+    setHasDragged(false);
+  };
+
+  const handleMouseDown = (e) => {
+    setHasDragged(false);
+    if (zoomLevel > 1) {
+      setIsDragging(true);
+      setDragStart({
+        x: e.clientX - panPosition.x,
+        y: e.clientY - panPosition.y
+      });
+    }
+  };
+
+  const handleMouseMove = (e) => {
+    if (isDragging && zoomLevel > 1) {
+      setHasDragged(true);
+      setPanPosition({
+        x: e.clientX - dragStart.x,
+        y: e.clientY - dragStart.y
+      });
+    }
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
   };
 
   const products = [
@@ -76,15 +140,19 @@ export default function HomePage({ cartItems, cartCount, addToCart, goToCheckout
       id: 1,
       name: 'ساعة فاخرة',
       description: 'ساعة أنيقة بتصميم عصري راقي. مثالية لجميع المناسبات، تجمع بين الأناقة والدقة الهندسية المتطورة.',
+      originalPrice: 399,
       price: 299,
-      image: 'https://m.media-amazon.com/images/I/61j7LeoBdcL._AC_UF1000,1000_QL80_.jpg',
+      discount: 25,
+      image: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=800&q=80',
       badge: 'جديد'
     },
     {
       id: 2,
       name: 'سماعات لاسلكية',
       description: 'جودة صوت فائقة مع خاصية إلغاء الضوضاء النشطة. مصممة للراحة وتجربة صوتية استثنائية.',
+      originalPrice: 299,
       price: 199,
+      discount: 33,
       image: 'https://images.unsplash.com/photo-1572635196237-14b3f281503f?w=800&q=80',
       badge: 'مميز'
     },
@@ -92,7 +160,9 @@ export default function HomePage({ cartItems, cartCount, addToCart, goToCheckout
       id: 3,
       name: 'حقيبة جلدية',
       description: 'حقيبة جلدية فاخرة مصنوعة من أجود أنواع الجلد الطبيعي. تصميم أنيق وعملي لحمل مستلزماتك اليومية.',
+      originalPrice: 349,
       price: 249,
+      discount: 29,
       image: 'https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=800&q=80',
       badge: 'عرض خاص'
     }
@@ -115,7 +185,7 @@ export default function HomePage({ cartItems, cartCount, addToCart, goToCheckout
         }
 
         .navbar {
-          background: #131310;
+          background: #2a2a2a;
           padding: 1.2rem 3rem;
           display: flex;
           justify-content: space-between;
@@ -366,6 +436,23 @@ export default function HomePage({ cartItems, cartCount, addToCart, goToCheckout
           box-shadow: 0 4px 12px rgba(196, 214, 0, 0.3);
         }
 
+        .discount-badge {
+          position: absolute;
+          top: 15px;
+          right: 15px;
+          background: linear-gradient(135deg, #ff6b35, #e85d2a);
+          color: white;
+          padding: 6px 12px;
+          border-radius: 20px;
+          font-size: 0.8rem;
+          font-weight: 700;
+          letter-spacing: 0.5px;
+          box-shadow: 0 4px 12px rgba(255, 107, 53, 0.4);
+          display: flex;
+          align-items: center;
+          gap: 4px;
+        }
+
         .product-info {
           padding: 1.5rem;
           position: relative;
@@ -392,6 +479,19 @@ export default function HomePage({ cartItems, cartCount, addToCart, goToCheckout
           justify-content: space-between;
           align-items: center;
           margin-top: 1.2rem;
+        }
+
+        .product-price-section {
+          display: flex;
+          flex-direction: column;
+          gap: 0.3rem;
+        }
+
+        .product-old-price {
+          font-size: 1rem;
+          color: #999;
+          text-decoration: line-through;
+          font-weight: 500;
         }
 
         .product-price {
@@ -578,6 +678,8 @@ export default function HomePage({ cartItems, cartCount, addToCart, goToCheckout
           max-width: 90vw;
           max-height: 90vh;
           animation: slideUpModal 0.3s ease;
+          border-radius: 12px;
+          box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
         }
 
         @keyframes slideUpModal {
@@ -593,9 +695,9 @@ export default function HomePage({ cartItems, cartCount, addToCart, goToCheckout
 
         .modal-close {
           position: absolute;
-          top: 20px;
-          left: 20px;
-          background: rgba(255, 255, 255, 0.9);
+          top: 15px;
+          left: 15px;
+          background: rgba(255, 255, 255, 0.95);
           border: none;
           width: 40px;
           height: 40px;
@@ -605,14 +707,14 @@ export default function HomePage({ cartItems, cartCount, addToCart, goToCheckout
           justify-content: center;
           font-size: 1.6rem;
           cursor: pointer;
-          z-index: 10;
+          z-index: 20;
           transition: all 0.3s ease;
           box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
         }
 
         .modal-close:hover {
           background: white;
-          transform: rotate(90deg);
+          transform: rotate(90deg) scale(1.1);
         }
 
         .modal-image-container {
@@ -620,24 +722,32 @@ export default function HomePage({ cartItems, cartCount, addToCart, goToCheckout
           display: flex;
           align-items: center;
           justify-content: center;
+          max-width: 90vw;
+          max-height: 90vh;
+          overflow: hidden;
+          border-radius: 12px;
         }
 
         .modal-image {
-          max-width: 90vw;
-          max-height: 90vh;
+          max-width: 100%;
+          max-height: 100%;
           object-fit: contain;
-          transition: transform 0.3s ease;
+          transition: transform 0.1s ease-out;
           border-radius: 12px;
-          box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+          cursor: zoom-in;
+        }
+
+        .modal-image.zoomed {
+          cursor: zoom-out;
         }
 
         .zoom-controls {
           position: absolute;
-          bottom: 30px;
-          right: 30px;
+          bottom: 15px;
+          right: 15px;
           display: flex;
           gap: 10px;
-          z-index: 10;
+          z-index: 20;
         }
 
         .zoom-btn {
@@ -658,7 +768,7 @@ export default function HomePage({ cartItems, cartCount, addToCart, goToCheckout
 
         .zoom-btn:hover {
           background: white;
-          transform: scale(1.1);
+          transform: scale(1.15);
         }
 
         .zoom-btn:active {
@@ -991,7 +1101,7 @@ export default function HomePage({ cartItems, cartCount, addToCart, goToCheckout
       <nav className="navbar">
         <div className="logo">
           <img 
-            src={logo_horizontal} 
+            src="./assets/logo_horizontal.png" 
             alt="TOUSKIYE TN Logo" 
             className="logo-image"
           />
@@ -1033,13 +1143,25 @@ export default function HomePage({ cartItems, cartCount, addToCart, goToCheckout
                   className="product-image"
                 />
                 <div className="product-badge">{product.badge}</div>
+                {product.discount && (
+                  <div className="discount-badge">
+                    <span>-{product.discount}%</span>
+                  </div>
+                )}
               </div>
               <div className="product-info">
                 <h3 className="product-name">{product.name}</h3>
                 <p className="product-description">{product.description}</p>
                 <div className="product-footer">
-                  <div className="product-price">
-                    {product.price} <span>دينار</span>
+                  <div className="product-price-section">
+                    {product.originalPrice && (
+                      <div className="product-old-price">
+                        {product.originalPrice} دينار
+                      </div>
+                    )}
+                    <div className="product-price">
+                      {product.price} <span>دينار</span>
+                    </div>
                   </div>
                   <button 
                     className="add-to-cart-btn"
@@ -1120,12 +1242,24 @@ export default function HomePage({ cartItems, cartCount, addToCart, goToCheckout
           <div className="image-modal-content" onClick={(e) => e.stopPropagation()}>
             <button className="modal-close" onClick={closeImageModal}>×</button>
             
-            <div className="modal-image-container">
+            <div 
+              className="modal-image-container"
+              onWheel={handleWheel}
+            >
               <img 
                 src={selectedProduct.image} 
                 alt={selectedProduct.name}
-                className="modal-image"
-                style={{ transform: `scale(${zoomLevel})` }}
+                className={`modal-image ${zoomLevel > 1 ? 'zoomed' : ''}`}
+                style={{ 
+                  transform: `scale(${zoomLevel}) translate(${panPosition.x / zoomLevel}px, ${panPosition.y / zoomLevel}px)`,
+                  transformOrigin: 'center center'
+                }}
+                draggable="false"
+                onClick={handleImageClick}
+                onMouseDown={handleMouseDown}
+                onMouseMove={handleMouseMove}
+                onMouseUp={handleMouseUp}
+                onMouseLeave={handleMouseUp}
               />
               <div className="zoom-controls">
                 <button className="zoom-btn" onClick={zoomOut}>−</button>
@@ -1151,9 +1285,28 @@ export default function HomePage({ cartItems, cartCount, addToCart, goToCheckout
                   <img src={lastAddedProduct.image} alt={lastAddedProduct.name} />
                 </div>
                 <div className="added-product-details">
-                  <div className="added-product-price-label">السعر</div>
-                  <div className="added-product-price">{lastAddedProduct.price} دينار</div>
                   <div className="added-product-name">{lastAddedProduct.name}</div>
+                  <div className="added-product-price-label">السعر</div>
+                  {lastAddedProduct.originalPrice && (
+                    <div className="product-old-price" style={{ fontSize: '0.9rem', marginBottom: '0.2rem' }}>
+                      {lastAddedProduct.originalPrice} دينار
+                    </div>
+                  )}
+                  <div className="added-product-price">
+                    {lastAddedProduct.price} دينار
+                    {lastAddedProduct.discount && (
+                      <span style={{ 
+                        fontSize: '0.9rem', 
+                        marginRight: '0.5rem',
+                        background: 'linear-gradient(135deg, #ff6b35, #e85d2a)',
+                        padding: '2px 8px',
+                        borderRadius: '10px',
+                        color: 'white'
+                      }}>
+                        -{lastAddedProduct.discount}%
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
 

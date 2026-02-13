@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import logo_vertical from "./assests/logo_vertical.png"
 
-export default function CheckoutCart({ cartItems = [], onClose, onRemoveItem, onUpdateQuantity }) {
+export default function CheckoutCart({ cartItems = [], onClose, onRemoveItem, onUpdateQuantity, onOrderComplete }) {
   const [formData, setFormData] = useState({
     fullName: '',
     phone: '',
@@ -59,8 +58,20 @@ export default function CheckoutCart({ cartItems = [], onClose, onRemoveItem, on
   const handleSubmit = (e) => {
     e.preventDefault();
     if (validateForm()) {
-      alert('تم تأكيد طلبك بنجاح! سنتصل بك قريباً.');
-      console.log('Order data:', { formData, cartItems, total });
+      const orderData = {
+        formData,
+        cartItems,
+        subtotal,
+        deliveryFee,
+        total
+      };
+      
+      if (onOrderComplete) {
+        onOrderComplete(orderData);
+      } else {
+        alert('تم تأكيد طلبك بنجاح! سنتصل بك قريباً.');
+        console.log('Order data:', orderData);
+      }
     }
   };
 
@@ -96,6 +107,18 @@ export default function CheckoutCart({ cartItems = [], onClose, onRemoveItem, on
         .item-image img { width: 100%; height: 100%; object-fit: cover; }
         .item-details { flex: 1; }
         .item-details h4 { font-size: 0.95rem; color: #2a2a2a; margin-bottom: 0.3rem; }
+        .item-price-info { display: flex; flex-direction: column; gap: 0.2rem; margin-top: 0.3rem; }
+        .item-old-price { font-size: 0.75rem; color: #999; text-decoration: line-through; }
+        .item-discount-badge { 
+          display: inline-block;
+          background: linear-gradient(135deg, #ff6b35, #e85d2a);
+          color: white;
+          padding: 2px 6px;
+          border-radius: 8px;
+          font-size: 0.7rem;
+          font-weight: 700;
+          margin-right: 0.3rem;
+        }
         .item-quantity-control { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.4rem; }
         .quantity-btn { width: 24px; height: 24px; border-radius: 6px; border: none; background: linear-gradient(135deg, #c4d600, #ff6b35); color: white; font-size: 0.9rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s ease; }
         .quantity-btn:hover { transform: scale(1.1); }
@@ -111,7 +134,7 @@ export default function CheckoutCart({ cartItems = [], onClose, onRemoveItem, on
         .required { color: #ff6b35; }
         .input-wrapper { position: relative; }
         .input-icon { position: absolute; top: 50%; right: 1rem; transform: translateY(-50%); font-size: 1rem; color: #999; }
-        .form-input, .form-select, .form-textarea { width: 100%; padding: 0.8rem 1.2rem 0.8rem 2.6rem; border: 2px solid #e0e0e0; border-radius: 12px; font-size: 0.85rem; font-family: 'Cairo', sans-serif; transition: all 0.3s ease; background: #f8f6f0; }
+        .form-input, .form-select, .form-textarea { width: 100%; padding: 0.8rem 2.8rem 0.8rem 1.2rem; border: 2px solid #e0e0e0; border-radius: 12px; font-size: 0.85rem; font-family: 'Cairo', sans-serif; transition: all 0.3s ease; background: #f8f6f0; }
         .form-input:focus, .form-select:focus, .form-textarea:focus { outline: none; border-color: #c4d600; background: white; box-shadow: 0 0 0 3px rgba(196, 214, 0, 0.1); }
         .form-input.error, .form-select.error, .form-textarea.error { border-color: #ff6b35; }
         .form-error { color: #ff6b35; font-size: 0.75rem; margin-top: 0.4rem; display: flex; align-items: center; gap: 0.3rem; }
@@ -170,6 +193,16 @@ export default function CheckoutCart({ cartItems = [], onClose, onRemoveItem, on
                       </div>
                       <div className="item-details">
                         <h4>{item.name}</h4>
+                        {(item.originalPrice || item.discount) && (
+                          <div className="item-price-info">
+                            {item.originalPrice && (
+                              <span className="item-old-price">{item.originalPrice} دينار</span>
+                            )}
+                            {item.discount && (
+                              <span className="item-discount-badge">-{item.discount}%</span>
+                            )}
+                          </div>
+                        )}
                         <div className="item-quantity-control">
                           <button className="quantity-btn" onClick={() => handleUpdateQuantity(index, (item.quantity || 1) - 1)}>−</button>
                           <span className="quantity-display">{item.quantity || 1}</span>
@@ -179,6 +212,11 @@ export default function CheckoutCart({ cartItems = [], onClose, onRemoveItem, on
                     </div>
                     <div className="item-price-section">
                       <div className="item-price">{(item.price * (item.quantity || 1))} <span>دينار</span></div>
+                      {item.discount && item.originalPrice && (
+                        <div style={{ fontSize: '0.7rem', color: '#ff6b35', fontWeight: '600', marginTop: '0.2rem' }}>
+                          وفرت {((item.originalPrice - item.price) * (item.quantity || 1))} دت
+                        </div>
+                      )}
                       <button className="delete-btn" onClick={() => handleRemoveItem(index)} title="حذف">🗑️</button>
                     </div>
                   </div>
