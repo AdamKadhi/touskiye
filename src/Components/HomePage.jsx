@@ -1211,22 +1211,22 @@ export default function HomePage({ cartItems, cartCount, addToCart, goToCheckout
           <div className="footer-section">
             <h3>تابعنا</h3>
             <div className="social-media">
-              <a href="#" className="social-link">
+              <p className="social-link">
                 <span className="social-icon">📘</span>
                 <span>فيسبوك</span>
-              </a>
-              <a href="#" className="social-link">
+              </p>
+              <p className="social-link">
                 <span className="social-icon">📸</span>
                 <span>انستغرام</span>
-              </a>
-              <a href="#" className="social-link">
+              </p>
+              <p className="social-link">
                 <span className="social-icon">🐦</span>
                 <span>تويتر</span>
-              </a>
-              <a href="#" className="social-link">
+              </p>
+              <p className="social-link">
                 <span className="social-icon">💼</span>
                 <span>لينكد إن</span>
-              </a>
+              </p>
             </div>
           </div>
         </div>

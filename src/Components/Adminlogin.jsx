@@ -157,10 +157,10 @@ export default function AdminLogin({ onLogin }) {
           </div>
 
           <div className="back-to-home">
-            <a href="#" className="back-link" onClick={(e) => { e.preventDefault(); window.location.href = '/'; }}>
+            <p className="back-link" onClick={(e) => { e.preventDefault(); window.location.href = '/'; }}>
               <span>←</span>
               <span>Back to Store</span>
-            </a>
+            </p>
           </div>
         </div>
       </div>
