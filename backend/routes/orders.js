@@ -1,23 +1,25 @@
 const express = require('express');
 const router = express.Router();
 const {
-  getAllOrders,
+  getOrders,
   getOrder,
   createOrder,
   updateOrder,
   deleteOrder,
   getOrderStats
 } = require('../controllers/orderController');
-const { protect, adminOnly } = require('../middleware/auth');
+const { protect } = require('../middleware/auth');
 
-// Public routes
+// Public routes (for customer orders)
 router.post('/', createOrder);
 
-// Admin routes (protected)
-router.get('/', protect, adminOnly, getAllOrders);
-router.get('/stats', protect, adminOnly, getOrderStats);
-router.get('/:id', protect, adminOnly, getOrder);
-router.put('/:id', protect, adminOnly, updateOrder);
-router.delete('/:id', protect, adminOnly, deleteOrder);
+// Protected routes (Admin only)
+router.use(protect);
+
+router.get('/', getOrders);
+router.get('/stats/overview', getOrderStats);
+router.get('/:id', getOrder);
+router.put('/:id', updateOrder);
+router.delete('/:id', deleteOrder);
 
 module.exports = router;

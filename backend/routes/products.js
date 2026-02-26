@@ -1,24 +1,28 @@
 const express = require('express');
 const router = express.Router();
-const upload = require('../config/upload');
 const {
-  getAllProducts,
-  getPublicProducts,
+  getProducts,
   getProduct,
   createProduct,
   updateProduct,
-  deleteProduct
+  deleteProduct,
+  getPublicProducts
 } = require('../controllers/productController');
-const { protect, adminOnly } = require('../middleware/auth');
+const { protect } = require('../middleware/auth');
 
 // Public routes
 router.get('/public', getPublicProducts);
 router.get('/:id', getProduct);
 
-// Admin routes (protected)
-router.get('/', protect, adminOnly, getAllProducts);
-router.post('/', protect, adminOnly, upload.single('image'), createProduct);
-router.put('/:id', protect, adminOnly, upload.single('image'), updateProduct);
-router.delete('/:id', protect, adminOnly, deleteProduct);
+// Protected routes (Admin only)
+router.use(protect); // All routes after this require authentication
+
+router.route('/')
+  .get(getProducts)
+  .post(createProduct);
+
+router.route('/:id')
+  .put(updateProduct)
+  .delete(deleteProduct);
 
 module.exports = router;

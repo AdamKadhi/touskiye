@@ -1,56 +1,45 @@
 const Product = require('../models/Product');
-const path = require('path');
-const fs = require('fs');
 
-// @desc    Get all products (with filters)
+// @desc    Get all products
 // @route   GET /api/products
-// @access  Private (Admin)
-exports.getAllProducts = async (req, res) => {
+// @access  Public (for customer view) / Private (for admin)
+exports.getProducts = async (req, res) => {
   try {
-    const { category, status, search } = req.query;
+    const { category, status, search, limit, page } = req.query;
+
+    // Build query
     let query = {};
 
     if (category) query.category = category;
     if (status) query.status = status;
     if (search) {
-      query.name = { $regex: search, $options: 'i' };
+      query.name = { $regex: search, $options: 'i' }; // Case-insensitive search
     }
 
-    const products = await Product.find(query).sort({ createdAt: -1 });
+    // Pagination
+    const pageNum = parseInt(page, 10) || 1;
+    const limitNum = parseInt(limit, 10) || 100;
+    const skip = (pageNum - 1) * limitNum;
+
+    const products = await Product.find(query)
+      .limit(limitNum)
+      .skip(skip)
+      .sort({ createdAt: -1 });
+
+    const total = await Product.countDocuments(query);
 
     res.status(200).json({
       success: true,
       count: products.length,
+      total,
+      page: pageNum,
+      pages: Math.ceil(total / limitNum),
       data: products
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: 'Error fetching products',
-      error: error.message
-    });
-  }
-};
-
-// @desc    Get public products (only shown products with stock)
-// @route   GET /api/products/public
-// @access  Public
-exports.getPublicProducts = async (req, res) => {
-  try {
-    // Get all shown products (including out of stock)
-    const products = await Product.find({ 
-      status: 'Shown'
-    }).sort({ createdAt: -1 });
-
-    res.status(200).json({
-      success: true,
-      count: products.length,
-      data: products
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Error fetching products',
+      message: 'Server error',
       error: error.message
     });
   }
@@ -77,58 +66,27 @@ exports.getProduct = async (req, res) => {
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: 'Error fetching product',
+      message: 'Server error',
       error: error.message
     });
   }
 };
 
-// @desc    Create new product
+// @desc    Create product
 // @route   POST /api/products
-// @access  Private (Admin)
+// @access  Private (Admin only)
 exports.createProduct = async (req, res) => {
   try {
-    const { name, category, price, originalPrice, stock, status, description, adLink } = req.body;
-
-    // Check if image was uploaded
-    if (!req.file) {
-      return res.status(400).json({
-        success: false,
-        message: 'Product image is required'
-      });
-    }
-
-    // Create image URL
-    const imageUrl = `/uploads/${req.file.filename}`;
-
-    const product = await Product.create({
-      name,
-      category,
-      price,
-      originalPrice: originalPrice || price,
-      stock,
-      status,
-      image: imageUrl,
-      description,
-      adLink
-    });
+    const product = await Product.create(req.body);
 
     res.status(201).json({
       success: true,
       data: product
     });
   } catch (error) {
-    // Delete uploaded file if product creation fails
-    if (req.file) {
-      const filePath = path.join(__dirname, '../uploads', req.file.filename);
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
-      }
-    }
-
     res.status(400).json({
       success: false,
-      message: 'Error creating product',
+      message: 'Failed to create product',
       error: error.message
     });
   }
@@ -136,7 +94,7 @@ exports.createProduct = async (req, res) => {
 
 // @desc    Update product
 // @route   PUT /api/products/:id
-// @access  Private (Admin)
+// @access  Private (Admin only)
 exports.updateProduct = async (req, res) => {
   try {
     let product = await Product.findById(req.params.id);
@@ -148,44 +106,19 @@ exports.updateProduct = async (req, res) => {
       });
     }
 
-    const updateData = { ...req.body };
-
-    // If new image is uploaded
-    if (req.file) {
-      // Delete old image
-      if (product.image && product.image.startsWith('/uploads/')) {
-        const oldImagePath = path.join(__dirname, '..', product.image);
-        if (fs.existsSync(oldImagePath)) {
-          fs.unlinkSync(oldImagePath);
-        }
-      }
-
-      // Set new image URL
-      updateData.image = `/uploads/${req.file.filename}`;
-    }
-
-    product = await Product.findByIdAndUpdate(
-      req.params.id,
-      updateData,
-      { new: true, runValidators: true }
-    );
+    product = await Product.findByIdAndUpdate(req.params.id, req.body, {
+      new: true,
+      runValidators: true
+    });
 
     res.status(200).json({
       success: true,
       data: product
     });
   } catch (error) {
-    // Delete uploaded file if update fails
-    if (req.file) {
-      const filePath = path.join(__dirname, '../uploads', req.file.filename);
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
-      }
-    }
-
     res.status(400).json({
       success: false,
-      message: 'Error updating product',
+      message: 'Failed to update product',
       error: error.message
     });
   }
@@ -193,7 +126,7 @@ exports.updateProduct = async (req, res) => {
 
 // @desc    Delete product
 // @route   DELETE /api/products/:id
-// @access  Private (Admin)
+// @access  Private (Admin only)
 exports.deleteProduct = async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
@@ -205,25 +138,38 @@ exports.deleteProduct = async (req, res) => {
       });
     }
 
-    // Delete product image
-    if (product.image && product.image.startsWith('/uploads/')) {
-      const imagePath = path.join(__dirname, '..', product.image);
-      if (fs.existsSync(imagePath)) {
-        fs.unlinkSync(imagePath);
-      }
-    }
-
-    await Product.findByIdAndDelete(req.params.id);
+    await product.deleteOne();
 
     res.status(200).json({
       success: true,
-      data: {},
       message: 'Product deleted successfully'
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: 'Error deleting product',
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Get public products (shown only)
+// @route   GET /api/products/public
+// @access  Public
+exports.getPublicProducts = async (req, res) => {
+  try {
+    const products = await Product.find({ status: 'Shown' })
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      count: products.length,
+      data: products
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
       error: error.message
     });
   }

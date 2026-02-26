@@ -16,8 +16,6 @@ export default function ProductsPage() {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [imagePreview, setImagePreview] = useState(null);
-  const [editImagePreview, setEditImagePreview] = useState(null);
 
   const [newProduct, setNewProduct] = useState({
     name: '',
@@ -26,16 +24,15 @@ export default function ProductsPage() {
     originalPrice: '',
     stock: '',
     status: 'Shown',
-    image: null,
+    image: '',
     description: '',
     adLink: ''
   });
 
-  const categories = ['Electronics', 'Fashion', 'Home', 'Sports', 'Beauty', 'Other'];
+  const categories = ['Accessories', 'Electronics', 'Bags', 'Fashion', 'Sports'];
   const statuses = ['Shown', 'Hidden', 'Out of Stock'];
 
-  const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
-
+  // Fetch products from backend
   useEffect(() => {
     fetchProducts();
   }, [filterCategory, filterStatus, searchQuery]);
@@ -56,68 +53,31 @@ export default function ProductsPage() {
     }
   };
 
+  // Filter products (frontend filtering for search)
   const filteredProducts = products.filter(product => {
     const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesSearch;
   });
 
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        setValidationMessage('Image size must be less than 5MB');
-        setShowValidationModal(true);
-        return;
-      }
-      
-      setNewProduct({ ...newProduct, image: file });
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handleEditImageChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        setValidationMessage('Image size must be less than 5MB');
-        setShowValidationModal(true);
-        return;
-      }
-      
-      setSelectedProduct({ ...selectedProduct, image: file });
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setEditImagePreview(reader.result);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
   const handleAddProduct = async () => {
     if (!newProduct.name || !newProduct.category || !newProduct.price || !newProduct.stock || !newProduct.image) {
-      setValidationMessage('Please fill in all required fields including image');
+      setValidationMessage('Please fill in all required fields');
       setShowValidationModal(true);
       return;
     }
 
     try {
-      const productData = {
+      await productsAPI.create({
         name: newProduct.name,
         category: newProduct.category,
-        price: parseFloat(newProduct.price),
-        originalPrice: newProduct.originalPrice ? parseFloat(newProduct.originalPrice) : parseFloat(newProduct.price),
-        stock: parseInt(newProduct.stock),
+        price: parseFloat(newProduct.price) || 0,
+        originalPrice: newProduct.originalPrice ? parseFloat(newProduct.originalPrice) : undefined,
+        stock: parseInt(newProduct.stock) || 0,
         status: newProduct.status,
         image: newProduct.image,
         description: newProduct.description || '',
         adLink: newProduct.adLink || ''
-      };
-
-      await productsAPI.create(productData);
+      });
       
       fetchProducts();
       setShowAddModal(false);
@@ -128,51 +88,43 @@ export default function ProductsPage() {
         originalPrice: '',
         stock: '',
         status: 'Shown',
-        image: null,
+        image: '',
         description: '',
         adLink: ''
       });
-      setImagePreview(null);
     } catch (error) {
       console.error('Error creating product:', error);
-      setValidationMessage(error.response?.data?.message || 'Failed to create product. Please try again.');
+      setValidationMessage('Failed to create product. Please try again.');
       setShowValidationModal(true);
     }
   };
 
   const handleEditProduct = async () => {
-    if (!selectedProduct.name || !selectedProduct.category || !selectedProduct.price || !selectedProduct.stock) {
+    if (!selectedProduct.name || !selectedProduct.category || !selectedProduct.price || !selectedProduct.image) {
       setValidationMessage('Please fill in all required fields');
       setShowValidationModal(true);
       return;
     }
 
     try {
-      const productData = {
+      await productsAPI.update(selectedProduct._id, {
         name: selectedProduct.name,
         category: selectedProduct.category,
-        price: parseFloat(selectedProduct.price),
-        originalPrice: selectedProduct.originalPrice ? parseFloat(selectedProduct.originalPrice) : parseFloat(selectedProduct.price),
-        stock: parseInt(selectedProduct.stock),
+        price: parseFloat(selectedProduct.price) || 0,
+        originalPrice: selectedProduct.originalPrice ? parseFloat(selectedProduct.originalPrice) : undefined,
+        stock: parseInt(selectedProduct.stock) || 0,
         status: selectedProduct.status,
+        image: selectedProduct.image,
         description: selectedProduct.description || '',
         adLink: selectedProduct.adLink || ''
-      };
-
-      // Only add image if a new file was selected
-      if (selectedProduct.image instanceof File) {
-        productData.image = selectedProduct.image;
-      }
-
-      await productsAPI.update(selectedProduct._id, productData);
+      });
       
       fetchProducts();
       setShowEditModal(false);
       setSelectedProduct(null);
-      setEditImagePreview(null);
     } catch (error) {
       console.error('Error updating product:', error);
-      setValidationMessage(error.response?.data?.message || 'Failed to update product. Please try again.');
+      setValidationMessage('Failed to update product. Please try again.');
       setShowValidationModal(true);
     }
   };
@@ -202,20 +154,22 @@ export default function ProductsPage() {
 
   const handleEditClick = (product) => {
     setSelectedProduct({ ...product });
-    setEditImagePreview(null);
     setShowEditModal(true);
+  };
+
+  const getStatusColor = (status) => {
+    switch(status) {
+      case 'Shown': return 'shown';
+      case 'Hidden': return 'hidden';
+      case 'Out of Stock': return 'outofstock';
+      default: return 'shown';
+    }
   };
 
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
-  };
-
-  const getImageUrl = (imagePath) => {
-    if (!imagePath) return 'https://via.placeholder.com/100';
-    if (imagePath.startsWith('http')) return imagePath;
-    return `${API_URL}${imagePath}`;
   };
 
   return (
@@ -233,6 +187,7 @@ export default function ProductsPage() {
         
         .page-subtitle { color: #999; font-size: 0.9rem; }
         
+        /* Filters Section */
         .filters-section { background: #2a2a2a; border-radius: 16px; padding: 1.5rem; margin-bottom: 2rem; border: 1px solid rgba(244, 237, 216, 0.1); }
         
         .filters-row { display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 1rem; align-items: center; }
@@ -257,65 +212,77 @@ export default function ProductsPage() {
         
         .add-product-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(255, 107, 53, 0.4); }
         
-        .products-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.5rem; }
+        /* Products Table */
+        .products-table-container { background: #2a2a2a; border-radius: 16px; padding: 1.5rem; border: 1px solid rgba(244, 237, 216, 0.1); overflow-x: auto; }
         
-        .product-card { background: #2a2a2a; border-radius: 16px; overflow: hidden; border: 1px solid rgba(244, 237, 216, 0.1); transition: all 0.3s ease; position: relative; }
+        .products-table { width: 100%; border-collapse: collapse; }
         
-        .product-card:hover { transform: translateY(-5px); box-shadow: 0 8px 30px rgba(196, 214, 0, 0.2); }
+        .products-table th { text-align: left; padding: 1rem; color: #999; font-size: 0.85rem; font-weight: 600; border-bottom: 1px solid rgba(244, 237, 216, 0.1); white-space: nowrap; }
         
-        .product-image-container { width: 100%; height: 200px; overflow: hidden; background: #1a1a1a; position: relative; }
+        .products-table td { text-align: left; padding: 1rem; color: #ccc; font-size: 0.9rem; border-bottom: 1px solid rgba(244, 237, 216, 0.05); vertical-align: middle; }
         
-        .product-image { width: 100%; height: 100%; object-fit: cover; }
+        .products-table tr:hover td { background: rgba(196, 214, 0, 0.05); }
         
-        .product-status-badge { position: absolute; top: 0.8rem; right: 0.8rem; padding: 0.4rem 0.8rem; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
+        .product-id { color: #c4d600; font-weight: 700; font-family: monospace; }
         
-        .product-status-badge.shown { background: rgba(196, 214, 0, 0.9); color: #2a2a2a; }
+        .product-image-cell { width: 80px; }
         
-        .product-status-badge.hidden { background: rgba(153, 153, 153, 0.9); color: white; }
+        .product-table-image { width: 60px; height: 60px; border-radius: 10px; object-fit: cover; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
         
-        .product-status-badge.out-of-stock { background: rgba(255, 107, 53, 0.9); color: white; }
+        .product-name-cell { font-weight: 600; color: #f4edd8; }
         
-        .product-discount-badge { position: absolute; top: 0.8rem; left: 0.8rem; padding: 0.4rem 0.8rem; border-radius: 20px; background: linear-gradient(135deg, #ff6b35, #e85d2a); color: white; font-size: 0.75rem; font-weight: 700; }
+        .product-category { font-size: 0.75rem; color: #999; margin-top: 0.2rem; }
         
-        .product-info { padding: 1.2rem; }
+        .price-cell { font-weight: 700; color: #f4edd8; }
         
-        .product-name { font-weight: 700; font-size: 1.1rem; color: #f4edd8; margin-bottom: 0.5rem; }
+        .original-price { font-size: 0.75rem; color: #999; text-decoration: line-through; margin-right: 0.3rem; }
         
-        .product-category { color: #999; font-size: 0.85rem; margin-bottom: 0.8rem; }
+        .discount-label { font-size: 0.7rem; background: linear-gradient(135deg, #ff6b35, #e85d2a); color: white; padding: 2px 6px; border-radius: 8px; margin-left: 0.3rem; }
         
-        .product-price-row { display: flex; align-items: center; gap: 0.8rem; margin-bottom: 0.8rem; }
+        .stock-cell { font-weight: 600; }
         
-        .product-price { font-weight: 700; font-size: 1.3rem; color: #ff6b35; }
+        .stock-low { color: #ff6b35; }
         
-        .product-original-price { font-size: 0.9rem; color: #999; text-decoration: line-through; }
+        .stock-ok { color: #c4d600; }
         
-        .product-stock { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0.8rem; background: rgba(196, 214, 0, 0.1); border-radius: 8px; margin-bottom: 1rem; }
+        .stock-out { color: #999; }
         
-        .product-stock-label { font-size: 0.85rem; color: #999; }
+        .status-badge { padding: 0.4rem 0.8rem; border-radius: 20px; font-size: 0.75rem; font-weight: 600; display: inline-block; }
         
-        .product-stock-value { font-weight: 700; color: #c4d600; }
+        .status-badge.shown { background: rgba(196, 214, 0, 0.2); color: #c4d600; }
         
-        .product-actions { display: flex; gap: 0.5rem; }
+        .status-badge.hidden { background: rgba(153, 153, 153, 0.2); color: #999; }
         
-        .action-btn { flex: 1; padding: 0.7rem; border: none; border-radius: 8px; font-weight: 600; font-size: 0.85rem; cursor: pointer; transition: all 0.3s ease; font-family: 'Cairo', sans-serif; }
+        .status-badge.outofstock { background: rgba(255, 107, 53, 0.2); color: #ff6b35; }
+        
+        .fb-link { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #1877f2, #0d65d9); color: white; border-radius: 8px; cursor: pointer; transition: all 0.3s ease; text-decoration: none; font-size: 1rem; }
+        
+        .fb-link:hover { transform: scale(1.1); box-shadow: 0 4px 12px rgba(24, 119, 242, 0.4); }
+        
+        .fb-link.disabled { background: rgba(153, 153, 153, 0.2); color: #666; cursor: not-allowed; pointer-events: none; }
+        
+        .actions-cell { display: flex; gap: 0.5rem; }
+        
+        .action-btn { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 8px; cursor: pointer; transition: all 0.3s ease; border: none; font-size: 1rem; }
         
         .action-btn.view { background: rgba(100, 150, 255, 0.1); color: #6496ff; }
         
-        .action-btn.view:hover { background: #6496ff; color: white; }
+        .action-btn.view:hover { background: #6496ff; color: white; transform: scale(1.1); }
         
         .action-btn.edit { background: rgba(196, 214, 0, 0.1); color: #c4d600; }
         
-        .action-btn.edit:hover { background: #c4d600; color: #2a2a2a; }
+        .action-btn.edit:hover { background: #c4d600; color: #2a2a2a; transform: scale(1.1); }
         
         .action-btn.delete { background: rgba(255, 107, 53, 0.1); color: #ff6b35; }
         
-        .action-btn.delete:hover { background: #ff6b35; color: white; }
+        .action-btn.delete:hover { background: #ff6b35; color: white; transform: scale(1.1); }
         
+        /* Modal */
         .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.8); display: flex; align-items: center; justify-content: center; z-index: 1000; animation: fadeIn 0.3s ease; }
         
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         
-        .modal-content { background: #2a2a2a; border-radius: 20px; padding: 2rem; max-width: 600px; width: 90%; max-height: 90vh; overflow-y: auto; border: 1px solid rgba(244, 237, 216, 0.1); animation: slideUp 0.3s ease; }
+        .modal-content { background: #2a2a2a; border-radius: 20px; padding: 2rem; max-width: 700px; width: 90%; max-height: 90vh; overflow-y: auto; border: 1px solid rgba(244, 237, 216, 0.1); animation: slideUp 0.3s ease; }
         
         @keyframes slideUp { from { transform: translateY(50px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
         
@@ -327,7 +294,11 @@ export default function ProductsPage() {
         
         .modal-close:hover { background: #ff6b35; color: white; transform: rotate(90deg); }
         
+        .form-row { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; }
+        
         .form-group { margin-bottom: 1.2rem; }
+        
+        .form-group.full { grid-column: 1 / -1; }
         
         .form-label { display: block; color: #999; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.5rem; }
         
@@ -336,18 +307,6 @@ export default function ProductsPage() {
         .form-input:focus { outline: none; border-color: #c4d600; }
         
         .form-textarea { resize: vertical; min-height: 80px; }
-        
-        .image-upload-area { border: 2px dashed rgba(196, 214, 0, 0.3); border-radius: 10px; padding: 2rem; text-align: center; background: #1a1a1a; cursor: pointer; transition: all 0.3s ease; }
-        
-        .image-upload-area:hover { border-color: #c4d600; background: rgba(196, 214, 0, 0.05); }
-        
-        .image-upload-area input { display: none; }
-        
-        .upload-icon { font-size: 3rem; margin-bottom: 0.5rem; color: #999; }
-        
-        .upload-text { color: #999; font-size: 0.9rem; }
-        
-        .image-preview { width: 100%; height: 200px; border-radius: 10px; object-fit: cover; margin-top: 1rem; }
         
         .modal-actions { display: flex; gap: 1rem; margin-top: 2rem; }
         
@@ -361,6 +320,31 @@ export default function ProductsPage() {
         
         .modal-btn.secondary:hover { background: #c4d600; color: #2a2a2a; }
         
+        /* View Modal */
+        .product-view-header { display: flex; gap: 2rem; margin-bottom: 2rem; padding-bottom: 2rem; border-bottom: 1px solid rgba(244, 237, 216, 0.1); }
+        
+        .product-view-image { width: 200px; height: 200px; border-radius: 16px; object-fit: cover; box-shadow: 0 8px 24px rgba(0,0,0,0.3); }
+        
+        .product-view-info { flex: 1; }
+        
+        .product-view-name { font-family: 'Bebas Neue', sans-serif; font-size: 2rem; color: #f4edd8; margin-bottom: 0.5rem; letter-spacing: 1px; }
+        
+        .product-view-category { color: #999; font-size: 0.9rem; margin-bottom: 1rem; }
+        
+        .product-view-price { font-size: 2rem; color: #ff6b35; font-weight: 700; margin-bottom: 0.5rem; }
+        
+        .product-view-discount { display: inline-block; background: linear-gradient(135deg, #ff6b35, #e85d2a); color: white; padding: 4px 10px; border-radius: 12px; font-size: 0.85rem; margin-left: 0.5rem; }
+        
+        .detail-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem; }
+        
+        .detail-item { background: #1a1a1a; padding: 1rem; border-radius: 10px; border: 1px solid rgba(196, 214, 0, 0.1); }
+        
+        .detail-label { color: #999; font-size: 0.8rem; font-weight: 600; margin-bottom: 0.5rem; }
+        
+        .detail-value { color: #f4edd8; font-size: 0.95rem; font-weight: 600; }
+        
+        .detail-item.full { grid-column: 1 / -1; }
+        
         .empty-state { text-align: center; padding: 3rem; color: #999; }
         
         .empty-icon { font-size: 3rem; margin-bottom: 1rem; }
@@ -371,19 +355,54 @@ export default function ProductsPage() {
         
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         
+        /* Responsive */
+        @media (max-width: 1024px) {
+          .filters-row { grid-template-columns: 1fr; }
+          .form-row { grid-template-columns: 1fr; }
+          .detail-grid { grid-template-columns: 1fr; }
+          .product-view-header { flex-direction: column; }
+        }
+        
         @media (max-width: 768px) {
           .products-container { padding: 1rem; }
-          .filters-row { grid-template-columns: 1fr; }
-          .products-grid { grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); }
+          .filters-section { padding: 1rem; }
+          .filters-row { gap: 0.8rem; }
+          .add-product-btn { width: 100%; justify-content: center; }
+          
+          .products-table-container { padding: 1rem; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+          .products-table { min-width: 900px; font-size: 0.85rem; }
+          .products-table th, .products-table td { padding: 0.7rem 0.5rem; }
+          .product-table-image { width: 50px; height: 50px; }
+          
+          .modal-content { padding: 1.5rem; max-width: 95%; }
+          .modal-title { font-size: 1.5rem; }
+          .form-input { font-size: 16px; /* Prevents zoom on iOS */ }
+          .actions-cell { gap: 0.3rem; }
+          .action-btn { width: 28px; height: 28px; font-size: 0.9rem; }
+          
+          .product-view-image { width: 150px; height: 150px; }
+          .product-view-name { font-size: 1.5rem; }
+          .product-view-price { font-size: 1.5rem; }
+        }
+        
+        @media (max-width: 480px) {
+          .products-container { padding: 0.8rem; }
+          .page-title { font-size: 1.5rem; }
+          .filters-section { padding: 0.8rem; }
+          .modal-content { padding: 1rem; }
+          .product-table-image { width: 40px; height: 40px; }
+          .product-view-image { width: 120px; height: 120px; }
+          .discount-label { font-size: 0.65rem; padding: 1px 4px; }
         }
       `}</style>
 
       <div className="products-container">
         <div className="products-header">
           <div className="page-title">Products Management</div>
-          <div className="page-subtitle">Manage your product inventory</div>
+          <div className="page-subtitle">Manage your store's product catalog</div>
         </div>
 
+        {/* Filters Section */}
         <div className="filters-section">
           <div className="filters-row">
             <div className="search-box">
@@ -391,7 +410,7 @@ export default function ProductsPage() {
               <input
                 type="text"
                 className="search-input"
-                placeholder="Search products..."
+                placeholder="Search by product name..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
@@ -413,7 +432,7 @@ export default function ProductsPage() {
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
             >
-              <option value="all">All Status</option>
+              <option value="all">All Statuses</option>
               {statuses.map(status => (
                 <option key={status} value={status}>{status}</option>
               ))}
@@ -426,63 +445,95 @@ export default function ProductsPage() {
           </div>
         </div>
 
-        {loading ? (
-          <div className="loading-state">
-            <div className="loading-spinner">⏳</div>
-            <div>Loading products...</div>
-          </div>
-        ) : filteredProducts.length > 0 ? (
-          <div className="products-grid">
-            {filteredProducts.map((product) => (
-              <div key={product._id} className="product-card">
-                <div className="product-image-container">
-                  <img 
-                    src={getImageUrl(product.image)} 
-                    alt={product.name} 
-                    className="product-image"
-                    onError={(e) => e.target.src = 'https://via.placeholder.com/200'}
-                  />
-                  <span className={`product-status-badge ${product.status.toLowerCase().replace(' ', '-')}`}>
-                    {product.status}
-                  </span>
-                  {product.discount > 0 && (
-                    <span className="product-discount-badge">-{product.discount}%</span>
-                  )}
-                </div>
-                <div className="product-info">
-                  <div className="product-name">{product.name}</div>
-                  <div className="product-category">{product.category}</div>
-                  <div className="product-price-row">
-                    <span className="product-price">{product.price} DT</span>
-                    {product.originalPrice > product.price && (
-                      <span className="product-original-price">{product.originalPrice} DT</span>
-                    )}
-                  </div>
-                  <div className="product-stock">
-                    <span className="product-stock-label">Stock:</span>
-                    <span className="product-stock-value">{product.stock} units</span>
-                  </div>
-                  <div className="product-actions">
-                    <button className="action-btn view" onClick={() => handleViewProduct(product)}>
-                      👁️ View
-                    </button>
-                    <button className="action-btn edit" onClick={() => handleEditClick(product)}>
-                      ✏️ Edit
-                    </button>
-                    <button className="action-btn delete" onClick={() => handleDeleteProduct(product._id)}>
-                      🗑️ Delete
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="empty-state">
-            <div className="empty-icon">📦</div>
-            <div>No products found</div>
-          </div>
-        )}
+        {/* Products Table */}
+        <div className="products-table-container">
+          {loading ? (
+            <div className="loading-state">
+              <div className="loading-spinner">⏳</div>
+              <div>Loading products...</div>
+            </div>
+          ) : filteredProducts.length > 0 ? (
+            <table className="products-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Image</th>
+                  <th>Name</th>
+                  <th>Price</th>
+                  <th>Stock</th>
+                  <th>Status</th>
+                  <th>Ad Link</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredProducts.map((product) => (
+                  <tr key={product._id}>
+                    <td className="product-id">PRD-{product._id?.slice(-6) || 'N/A'}</td>
+                    <td className="product-image-cell">
+                      <img src={product.image || 'https://via.placeholder.com/60'} alt={product.name} className="product-table-image" />
+                    </td>
+                    <td>
+                      <div className="product-name-cell">{product.name}</div>
+                      <div className="product-category">{product.category}</div>
+                    </td>
+                    <td className="price-cell">
+                      {product.originalPrice && product.originalPrice > product.price && (
+                        <span className="original-price">{product.originalPrice} DT</span>
+                      )}
+                      <div>
+                        {product.price} DT
+                        {product.discount && product.discount > 0 && (
+                          <span className="discount-label">-{product.discount}%</span>
+                        )}
+                      </div>
+                    </td>
+                    <td className={`stock-cell ${
+                      product.stock === 0 ? 'stock-out' : 
+                      product.stock < 20 ? 'stock-low' : 'stock-ok'
+                    }`}>
+                      {product.stock === 0 ? 'Out of Stock' : `${product.stock} units`}
+                    </td>
+                    <td>
+                      <span className={`status-badge ${getStatusColor(product.status)}`}>
+                        {product.status}
+                      </span>
+                    </td>
+                    <td>
+                      {product.adLink ? (
+                        <a href={product.adLink} target="_blank" rel="noopener noreferrer" className="fb-link" title="View Facebook Ad">
+                          📘
+                        </a>
+                      ) : (
+                        <div className="fb-link disabled" title="No ad link">
+                          📘
+                        </div>
+                      )}
+                    </td>
+                    <td>
+                      <div className="actions-cell">
+                        <button className="action-btn view" onClick={() => handleViewProduct(product)} title="View">
+                          👁️
+                        </button>
+                        <button className="action-btn edit" onClick={() => handleEditClick(product)} title="Edit">
+                          ✏️
+                        </button>
+                        <button className="action-btn delete" onClick={() => handleDeleteProduct(product._id)} title="Delete">
+                          🗑️
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <div className="empty-state">
+              <div className="empty-icon">📦</div>
+              <div>No products found</div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Add Product Modal */}
@@ -494,115 +545,112 @@ export default function ProductsPage() {
               <button className="modal-close" onClick={() => setShowAddModal(false)}>×</button>
             </div>
 
-            <div className="form-group">
-              <label className="form-label">Product Image *</label>
-              <label className="image-upload-area" htmlFor="product-image">
-                <input 
-                  id="product-image"
-                  type="file" 
-                  accept="image/*"
-                  onChange={handleImageChange}
+            <div className="form-row">
+              <div className="form-group">
+                <label className="form-label">Product Name *</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  value={newProduct.name}
+                  onChange={(e) => setNewProduct({...newProduct, name: e.target.value})}
+                  placeholder="Enter product name"
                 />
-                {imagePreview ? (
-                  <img src={imagePreview} alt="Preview" className="image-preview" />
-                ) : (
-                  <>
-                    <div className="upload-icon">📷</div>
-                    <div className="upload-text">Click to upload image (max 5MB)</div>
-                  </>
-                )}
-              </label>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Category *</label>
+                <select
+                  className="form-input"
+                  value={newProduct.category}
+                  onChange={(e) => setNewProduct({...newProduct, category: e.target.value})}
+                >
+                  <option value="">Select category</option>
+                  {categories.map(category => (
+                    <option key={category} value={category}>{category}</option>
+                  ))}
+                </select>
+              </div>
             </div>
 
-            <div className="form-group">
-              <label className="form-label">Product Name *</label>
+            <div className="form-row">
+              <div className="form-group">
+                <label className="form-label">Price *</label>
+                <input
+                  type="number"
+                  className="form-input"
+                  value={newProduct.price}
+                  onChange={(e) => setNewProduct({...newProduct, price: e.target.value})}
+                  placeholder="299"
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Original Price (Optional)</label>
+                <input
+                  type="number"
+                  className="form-input"
+                  value={newProduct.originalPrice}
+                  onChange={(e) => setNewProduct({...newProduct, originalPrice: e.target.value})}
+                  placeholder="399"
+                />
+              </div>
+            </div>
+
+            <div className="form-row">
+              <div className="form-group">
+                <label className="form-label">Stock *</label>
+                <input
+                  type="number"
+                  className="form-input"
+                  value={newProduct.stock}
+                  onChange={(e) => setNewProduct({...newProduct, stock: e.target.value})}
+                  placeholder="50"
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Status *</label>
+                <select
+                  className="form-input"
+                  value={newProduct.status}
+                  onChange={(e) => setNewProduct({...newProduct, status: e.target.value})}
+                >
+                  {statuses.map(status => (
+                    <option key={status} value={status}>{status}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="form-group full">
+              <label className="form-label">Image URL *</label>
               <input
                 type="text"
                 className="form-input"
-                value={newProduct.name}
-                onChange={(e) => setNewProduct({...newProduct, name: e.target.value})}
-                placeholder="Enter product name"
+                value={newProduct.image}
+                onChange={(e) => setNewProduct({...newProduct, image: e.target.value})}
+                placeholder="https://example.com/image.jpg"
               />
             </div>
 
-            <div className="form-group">
-              <label className="form-label">Category *</label>
-              <select
-                className="form-input"
-                value={newProduct.category}
-                onChange={(e) => setNewProduct({...newProduct, category: e.target.value})}
-              >
-                <option value="">Select category</option>
-                {categories.map(category => (
-                  <option key={category} value={category}>{category}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Price (DT) *</label>
-              <input
-                type="number"
-                className="form-input"
-                value={newProduct.price}
-                onChange={(e) => setNewProduct({...newProduct, price: e.target.value})}
-                placeholder="0.00"
-              />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Original Price (DT)</label>
-              <input
-                type="number"
-                className="form-input"
-                value={newProduct.originalPrice}
-                onChange={(e) => setNewProduct({...newProduct, originalPrice: e.target.value})}
-                placeholder="Leave empty if no discount"
-              />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Stock *</label>
-              <input
-                type="number"
-                className="form-input"
-                value={newProduct.stock}
-                onChange={(e) => setNewProduct({...newProduct, stock: e.target.value})}
-                placeholder="0"
-              />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Status *</label>
-              <select
-                className="form-input"
-                value={newProduct.status}
-                onChange={(e) => setNewProduct({...newProduct, status: e.target.value})}
-              >
-                {statuses.map(status => (
-                  <option key={status} value={status}>{status}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="form-group">
+            <div className="form-group full">
               <label className="form-label">Description</label>
               <textarea
                 className="form-input form-textarea"
                 value={newProduct.description}
                 onChange={(e) => setNewProduct({...newProduct, description: e.target.value})}
-                placeholder="Product description"
+                placeholder="Product description..."
               />
             </div>
 
-            <div className="form-group">
-              <label className="form-label">Ad Link (Optional)</label>
+            <div className="form-group full">
+              <label className="form-label">Facebook Ad Link</label>
               <input
-                type="url"
+                type="text"
                 className="form-input"
                 value={newProduct.adLink}
                 onChange={(e) => setNewProduct({...newProduct, adLink: e.target.value})}
-                placeholder="https://..."
+                placeholder="https://facebook.com/ads/..."
               />
             </div>
 
@@ -618,6 +666,87 @@ export default function ProductsPage() {
         </div>
       )}
 
+      {/* View Product Modal */}
+      {showViewModal && selectedProduct && (
+        <div className="modal-overlay" onClick={() => setShowViewModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="modal-title">Product Details</div>
+              <button className="modal-close" onClick={() => setShowViewModal(false)}>×</button>
+            </div>
+
+            <div className="product-view-header">
+              <img src={selectedProduct.image || 'https://via.placeholder.com/200'} alt={selectedProduct.name} className="product-view-image" />
+              <div className="product-view-info">
+                <div className="product-view-name">{selectedProduct.name}</div>
+                <div className="product-view-category">{selectedProduct.category}</div>
+                <div className="product-view-price">
+                  {selectedProduct.price} DT
+                  {selectedProduct.discount && selectedProduct.discount > 0 && (
+                    <span className="product-view-discount">-{selectedProduct.discount}%</span>
+                  )}
+                </div>
+                {selectedProduct.originalPrice && selectedProduct.originalPrice > selectedProduct.price && (
+                  <div style={{ color: '#999', textDecoration: 'line-through', fontSize: '1.1rem' }}>
+                    {selectedProduct.originalPrice} DT
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="detail-grid">
+              <div className="detail-item">
+                <div className="detail-label">Product ID</div>
+                <div className="detail-value" style={{ color: '#c4d600' }}>PRD-{selectedProduct._id?.slice(-6) || 'N/A'}</div>
+              </div>
+
+              <div className="detail-item">
+                <div className="detail-label">Stock</div>
+                <div className="detail-value">{selectedProduct.stock} units</div>
+              </div>
+
+              <div className="detail-item">
+                <div className="detail-label">Status</div>
+                <div className="detail-value">
+                  <span className={`status-badge ${getStatusColor(selectedProduct.status)}`}>
+                    {selectedProduct.status}
+                  </span>
+                </div>
+              </div>
+
+              <div className="detail-item">
+                <div className="detail-label">Created Date</div>
+                <div className="detail-value">{formatDate(selectedProduct.createdAt)}</div>
+              </div>
+
+              <div className="detail-item full">
+                <div className="detail-label">Description</div>
+                <div className="detail-value">{selectedProduct.description || 'No description'}</div>
+              </div>
+
+              <div className="detail-item full">
+                <div className="detail-label">Facebook Ad Link</div>
+                <div className="detail-value">
+                  {selectedProduct.adLink ? (
+                    <a href={selectedProduct.adLink} target="_blank" rel="noopener noreferrer" style={{ color: '#6496ff' }}>
+                      {selectedProduct.adLink}
+                    </a>
+                  ) : (
+                    <span style={{ color: '#999' }}>No ad link</span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="modal-actions">
+              <button className="modal-btn secondary" onClick={() => setShowViewModal(false)}>
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Edit Product Modal */}
       {showEditModal && selectedProduct && (
         <div className="modal-overlay" onClick={() => setShowEditModal(false)}>
@@ -627,95 +756,89 @@ export default function ProductsPage() {
               <button className="modal-close" onClick={() => setShowEditModal(false)}>×</button>
             </div>
 
-            <div className="form-group">
-              <label className="form-label">Product Image</label>
-              <label className="image-upload-area" htmlFor="edit-product-image">
-                <input 
-                  id="edit-product-image"
-                  type="file" 
-                  accept="image/*"
-                  onChange={handleEditImageChange}
+            <div className="form-row">
+              <div className="form-group">
+                <label className="form-label">Product Name *</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  value={selectedProduct.name}
+                  onChange={(e) => setSelectedProduct({...selectedProduct, name: e.target.value})}
                 />
-                {editImagePreview ? (
-                  <img src={editImagePreview} alt="Preview" className="image-preview" />
-                ) : selectedProduct.image ? (
-                  <img src={getImageUrl(selectedProduct.image)} alt="Current" className="image-preview" />
-                ) : (
-                  <>
-                    <div className="upload-icon">📷</div>
-                    <div className="upload-text">Click to change image</div>
-                  </>
-                )}
-              </label>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Category *</label>
+                <select
+                  className="form-input"
+                  value={selectedProduct.category}
+                  onChange={(e) => setSelectedProduct({...selectedProduct, category: e.target.value})}
+                >
+                  {categories.map(category => (
+                    <option key={category} value={category}>{category}</option>
+                  ))}
+                </select>
+              </div>
             </div>
 
-            <div className="form-group">
-              <label className="form-label">Product Name *</label>
+            <div className="form-row">
+              <div className="form-group">
+                <label className="form-label">Price *</label>
+                <input
+                  type="number"
+                  className="form-input"
+                  value={selectedProduct.price}
+                  onChange={(e) => setSelectedProduct({...selectedProduct, price: parseFloat(e.target.value)})}
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Original Price</label>
+                <input
+                  type="number"
+                  className="form-input"
+                  value={selectedProduct.originalPrice || ''}
+                  onChange={(e) => setSelectedProduct({...selectedProduct, originalPrice: parseFloat(e.target.value) || undefined})}
+                />
+              </div>
+            </div>
+
+            <div className="form-row">
+              <div className="form-group">
+                <label className="form-label">Stock *</label>
+                <input
+                  type="number"
+                  className="form-input"
+                  value={selectedProduct.stock}
+                  onChange={(e) => setSelectedProduct({...selectedProduct, stock: parseInt(e.target.value)})}
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Status *</label>
+                <select
+                  className="form-input"
+                  value={selectedProduct.status}
+                  onChange={(e) => setSelectedProduct({...selectedProduct, status: e.target.value})}
+                >
+                  {statuses.map(status => (
+                    <option key={status} value={status}>{status}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="form-group full">
+              <label className="form-label">Image URL *</label>
               <input
                 type="text"
                 className="form-input"
-                value={selectedProduct.name}
-                onChange={(e) => setSelectedProduct({...selectedProduct, name: e.target.value})}
+                value={selectedProduct.image}
+                onChange={(e) => setSelectedProduct({...selectedProduct, image: e.target.value})}
               />
             </div>
 
-            <div className="form-group">
-              <label className="form-label">Category *</label>
-              <select
-                className="form-input"
-                value={selectedProduct.category}
-                onChange={(e) => setSelectedProduct({...selectedProduct, category: e.target.value})}
-              >
-                {categories.map(category => (
-                  <option key={category} value={category}>{category}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Price (DT) *</label>
-              <input
-                type="number"
-                className="form-input"
-                value={selectedProduct.price}
-                onChange={(e) => setSelectedProduct({...selectedProduct, price: e.target.value})}
-              />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Original Price (DT)</label>
-              <input
-                type="number"
-                className="form-input"
-                value={selectedProduct.originalPrice}
-                onChange={(e) => setSelectedProduct({...selectedProduct, originalPrice: e.target.value})}
-              />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Stock *</label>
-              <input
-                type="number"
-                className="form-input"
-                value={selectedProduct.stock}
-                onChange={(e) => setSelectedProduct({...selectedProduct, stock: e.target.value})}
-              />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Status *</label>
-              <select
-                className="form-input"
-                value={selectedProduct.status}
-                onChange={(e) => setSelectedProduct({...selectedProduct, status: e.target.value})}
-              >
-                {statuses.map(status => (
-                  <option key={status} value={status}>{status}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="form-group">
+            <div className="form-group full">
               <label className="form-label">Description</label>
               <textarea
                 className="form-input form-textarea"
@@ -724,10 +847,10 @@ export default function ProductsPage() {
               />
             </div>
 
-            <div className="form-group">
-              <label className="form-label">Ad Link</label>
+            <div className="form-group full">
+              <label className="form-label">Facebook Ad Link</label>
               <input
-                type="url"
+                type="text"
                 className="form-input"
                 value={selectedProduct.adLink || ''}
                 onChange={(e) => setSelectedProduct({...selectedProduct, adLink: e.target.value})}
@@ -745,80 +868,8 @@ export default function ProductsPage() {
           </div>
         </div>
       )}
-
-      {/* View Product Modal */}
-      {showViewModal && selectedProduct && (
-        <div className="modal-overlay" onClick={() => setShowViewModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <div className="modal-title">Product Details</div>
-              <button className="modal-close" onClick={() => setShowViewModal(false)}>×</button>
-            </div>
-
-            <img 
-              src={getImageUrl(selectedProduct.image)} 
-              alt={selectedProduct.name}
-              className="image-preview"
-              onError={(e) => e.target.src = 'https://via.placeholder.com/400'}
-            />
-
-            <div style={{ marginTop: '1.5rem' }}>
-              <div style={{ marginBottom: '1rem' }}>
-                <div style={{ color: '#999', fontSize: '0.85rem', marginBottom: '0.3rem' }}>Product Name</div>
-                <div style={{ color: '#f4edd8', fontSize: '1.1rem', fontWeight: '700' }}>{selectedProduct.name}</div>
-              </div>
-
-              <div style={{ marginBottom: '1rem' }}>
-                <div style={{ color: '#999', fontSize: '0.85rem', marginBottom: '0.3rem' }}>Category</div>
-                <div style={{ color: '#f4edd8' }}>{selectedProduct.category}</div>
-              </div>
-
-              <div style={{ marginBottom: '1rem' }}>
-                <div style={{ color: '#999', fontSize: '0.85rem', marginBottom: '0.3rem' }}>Price</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
-                  <span style={{ color: '#ff6b35', fontSize: '1.5rem', fontWeight: '700' }}>{selectedProduct.price} DT</span>
-                  {selectedProduct.originalPrice > selectedProduct.price && (
-                    <span style={{ color: '#999', textDecoration: 'line-through' }}>{selectedProduct.originalPrice} DT</span>
-                  )}
-                </div>
-              </div>
-
-              <div style={{ marginBottom: '1rem' }}>
-                <div style={{ color: '#999', fontSize: '0.85rem', marginBottom: '0.3rem' }}>Stock</div>
-                <div style={{ color: '#c4d600', fontWeight: '700' }}>{selectedProduct.stock} units</div>
-              </div>
-
-              <div style={{ marginBottom: '1rem' }}>
-                <div style={{ color: '#999', fontSize: '0.85rem', marginBottom: '0.3rem' }}>Status</div>
-                <span className={`product-status-badge ${selectedProduct.status.toLowerCase().replace(' ', '-')}`}>
-                  {selectedProduct.status}
-                </span>
-              </div>
-
-              {selectedProduct.description && (
-                <div style={{ marginBottom: '1rem' }}>
-                  <div style={{ color: '#999', fontSize: '0.85rem', marginBottom: '0.3rem' }}>Description</div>
-                  <div style={{ color: '#f4edd8', lineHeight: '1.6' }}>{selectedProduct.description}</div>
-                </div>
-              )}
-
-              {selectedProduct.discount > 0 && (
-                <div style={{ marginBottom: '1rem' }}>
-                  <div style={{ color: '#999', fontSize: '0.85rem', marginBottom: '0.3rem' }}>Discount</div>
-                  <div style={{ color: '#ff6b35', fontWeight: '700' }}>{selectedProduct.discount}%</div>
-                </div>
-              )}
-            </div>
-
-            <div className="modal-actions">
-              <button className="modal-btn secondary" onClick={() => setShowViewModal(false)}>
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
+      
+      {/* Delete Confirmation Modal */}
       <ConfirmModal
         show={showDeleteConfirm}
         onClose={() => setShowDeleteConfirm(false)}
@@ -830,6 +881,7 @@ export default function ProductsPage() {
         type="danger"
       />
 
+      {/* Validation Modal */}
       <ConfirmModal
         show={showValidationModal}
         onClose={() => setShowValidationModal(false)}
