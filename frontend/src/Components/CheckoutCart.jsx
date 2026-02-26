@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { ordersAPI } from '../services/api';
 
 export default function CheckoutCart({ cartItems = [], onClose, onRemoveItem, onUpdateQuantity, onOrderComplete }) {
   const [formData, setFormData] = useState({
@@ -55,23 +56,83 @@ export default function CheckoutCart({ cartItems = [], onClose, onRemoveItem, on
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (validateForm()) {
-      const orderData = {
-        formData,
-        cartItems,
-        subtotal,
-        deliveryFee,
-        total
+    
+    if (!validateForm()) {
+      return;
+    }
+
+    try {
+      // Map Arabic city names to English for backend
+      const cityMapping = {
+        'تونس': 'Tunis',
+        'أريانة': 'Ariana',
+        'بن عروس': 'Ben Arous',
+        'منوبة': 'Manouba',
+        'نابل': 'Nabeul',
+        'زغوان': 'Zaghouan',
+        'بنزرت': 'Bizerte',
+        'باجة': 'Beja',
+        'جندوبة': 'Jendouba',
+        'الكاف': 'Kef',
+        'سليانة': 'Siliana',
+        'القيروان': 'Kairouan',
+        'القصرين': 'Kasserine',
+        'سوسة': 'Sousse',
+        'المنستير': 'Monastir',
+        'المهدية': 'Mahdia',
+        'صفاقس': 'Sfax',
+        'قابس': 'Gabes',
+        'مدنين': 'Medenine',
+        'تطاوين': 'Tataouine',
+        'قفصة': 'Gafsa',
+        'توزر': 'Tozeur',
+        'قبلي': 'Kebili',
+        'سيدي بوزيد': 'Sidi Bouzid'
       };
+
+      const orderData = {
+        customerName: formData.fullName,
+        phone: formData.phone,
+        product: cartItems.map(item => item.name).join(', '),
+        productImage: cartItems[0]?.image || '',
+        quantity: cartItems.reduce((sum, item) => sum + item.quantity, 0),
+        city: cityMapping[formData.city] || formData.city,
+        address: formData.address,
+        total: total
+      };
+
+      console.log('📤 Sending order data:', orderData);
+
+      const response = await ordersAPI.create(orderData);
       
+      console.log('✅ Order created:', response.data);
+
+      const completeOrderData = {
+        orderId: response.data.data._id,
+        formData: {
+          fullName: formData.fullName,
+          phone: formData.phone,
+          city: formData.city,
+          address: formData.address
+        },
+        cartItems: cartItems,
+        subtotal: subtotal,
+        deliveryFee: deliveryFee,
+        total: total
+      };
+
+      console.log('📦 Sending to Thank You page:', completeOrderData);
+
       if (onOrderComplete) {
-        onOrderComplete(orderData);
-      } else {
-        alert('تم تأكيد طلبك بنجاح! سنتصل بك قريباً.');
-        console.log('Order data:', orderData);
+        onOrderComplete(completeOrderData);
       }
+    } catch (error) {
+      console.error('❌ Full error:', error);
+      console.error('❌ Error response:', error.response);
+      console.error('❌ Error data:', error.response?.data);
+      alert('حدث خطأ في إنشاء الطلب. يرجى المحاولة مرة أخرى.');
     }
   };
 

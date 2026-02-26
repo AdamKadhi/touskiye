@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { ordersAPI, productsAPI } from '../services/api';
 import ConfirmModal from './ConfirmModal';
 
 export default function OrdersPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterProduct, setFilterProduct] = useState('all');
-  const [filterCity, setFilterCity] = useState('all');
+  const [filterDate, setFilterDate] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
   const [showAddModal, setShowAddModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
@@ -14,160 +15,202 @@ export default function OrdersPage() {
   const [validationMessage, setValidationMessage] = useState('');
   const [orderToDelete, setOrderToDelete] = useState(null);
   const [selectedOrder, setSelectedOrder] = useState(null);
-  const [orders, setOrders] = useState([
-    { 
-      id: '#12345', 
-      customerName: 'Ahmed Mohamed', 
-      phone: '12345678',
-      product: 'Luxury Watch', 
-      productImage: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=100&q=80',
-      quantity: 1,
-      city: 'Tunis', 
-      address: '123 Habib Bourguiba Street',
-      total: 299, 
-      status: 'Delivered', 
-      date: '2026-02-13',
-      paymentMethod: 'Cash on Delivery'
-    },
-    { 
-      id: '#12344', 
-      customerName: 'Fatima Zahra', 
-      phone: '23456789',
-      product: 'Wireless Headphones', 
-      productImage: 'https://images.unsplash.com/photo-1572635196237-14b3f281503f?w=100&q=80',
-      quantity: 2,
-      city: 'Sfax', 
-      address: '456 Avenue de la Liberté',
-      total: 398, 
-      status: 'Shipping', 
-      date: '2026-02-13',
-      paymentMethod: 'Cash on Delivery'
-    },
-    { 
-      id: '#12343', 
-      customerName: 'Mohamed Ali', 
-      phone: '34567890',
-      product: 'Leather Bag', 
-      productImage: 'https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=100&q=80',
-      quantity: 1,
-      city: 'Sousse', 
-      address: '789 Rue de Paris',
-      total: 249, 
-      status: 'Pending', 
-      date: '2026-02-12',
-      paymentMethod: 'Cash on Delivery'
-    },
-    { 
-      id: '#12342', 
-      customerName: 'Sarah Ahmed', 
-      phone: '45678901',
-      product: 'Luxury Watch', 
-      productImage: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=100&q=80',
-      quantity: 1,
-      city: 'Monastir', 
-      address: '321 Boulevard de l\'Environnement',
-      total: 299, 
-      status: 'Delivered', 
-      date: '2026-02-12',
-      paymentMethod: 'Cash on Delivery'
-    },
-    { 
-      id: '#12341', 
-      customerName: 'Youssef Hassan', 
-      phone: '56789012',
-      product: 'Wireless Headphones', 
-      productImage: 'https://images.unsplash.com/photo-1572635196237-14b3f281503f?w=100&q=80',
-      quantity: 2,
-      city: 'Tunis', 
-      address: '654 Avenue Habib Bourguiba',
-      total: 398, 
-      status: 'Cancelled', 
-      date: '2026-02-11',
-      paymentMethod: 'Cash on Delivery'
-    }
-  ]);
+  const [orders, setOrders] = useState([]);
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [loadingProducts, setLoadingProducts] = useState(true);
 
   const [newOrder, setNewOrder] = useState({
     customerName: '',
     phone: '',
     product: '',
+    productImage: '',
     quantity: 1,
     city: '',
     address: '',
-    status: 'Pending'
+    total: '',
+    status: 'Pending',
+    paymentMethod: 'Cash on Delivery',
+    comment: ''
   });
 
-  const products = ['Luxury Watch', 'Wireless Headphones', 'Leather Bag'];
-  const cities = ['Tunis', 'Sfax', 'Sousse', 'Monastir', 'Bizerte', 'Gabes', 'Ariana', 'Gafsa'];
-  const statuses = ['Pending', 'Shipping', 'Delivered', 'Cancelled'];
+  const cities = ['Tunis', 'Sfax', 'Sousse', 'Kairouan', 'Bizerte', 'Gabes', 'Ariana', 'Gafsa', 'Monastir', 'Ben Arous'];
+  const statuses = ['Pending', 'Confirmed', 'Delivered', 'Cancelled'];
+  const dateFilters = [
+    { label: 'All Time', value: 'all' },
+    { label: 'Today', value: 'today' },
+    { label: 'Yesterday', value: 'yesterday' },
+    { label: 'Last 7 Days', value: 'week' },
+    { label: 'Last 30 Days', value: 'month' },
+    { label: 'This Month', value: 'thisMonth' }
+  ];
 
-  const productPrices = {
-    'Luxury Watch': 299,
-    'Wireless Headphones': 199,
-    'Leather Bag': 249
+  // Fetch products from backend
+  useEffect(() => {
+    fetchProducts();
+  }, []);
+
+  // Fetch orders from backend
+  useEffect(() => {
+    fetchOrders();
+  }, [filterProduct, filterDate, filterStatus, searchQuery]);
+
+  const fetchProducts = async () => {
+    try {
+      setLoadingProducts(true);
+      const response = await productsAPI.getAll();
+      setProducts(response.data.data);
+      setLoadingProducts(false);
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      setLoadingProducts(false);
+    }
   };
 
-  const productImages = {
-    'Luxury Watch': 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=100&q=80',
-    'Wireless Headphones': 'https://images.unsplash.com/photo-1572635196237-14b3f281503f?w=100&q=80',
-    'Leather Bag': 'https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=100&q=80'
+  const fetchOrders = async () => {
+    try {
+      setLoading(true);
+      const response = await ordersAPI.getAll({
+        product: filterProduct !== 'all' ? filterProduct : undefined,
+        status: filterStatus !== 'all' ? filterStatus : undefined,
+        search: searchQuery || undefined
+      });
+      setOrders(response.data.data);
+      setLoading(false);
+    } catch (error) {
+      console.error('Error fetching orders:', error);
+      setLoading(false);
+    }
   };
 
-  // Filter orders
-  const filteredOrders = orders.filter(order => {
+  // Filter orders by date (frontend filtering)
+  const getFilteredOrdersByDate = (orders) => {
+    if (filterDate === 'all') return orders;
+
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    
+    return orders.filter(order => {
+      const orderDate = new Date(order.createdAt);
+      const orderDay = new Date(orderDate.getFullYear(), orderDate.getMonth(), orderDate.getDate());
+      
+      switch(filterDate) {
+        case 'today':
+          return orderDay.getTime() === today.getTime();
+        
+        case 'yesterday':
+          const yesterday = new Date(today);
+          yesterday.setDate(yesterday.getDate() - 1);
+          return orderDay.getTime() === yesterday.getTime();
+        
+        case 'week':
+          const weekAgo = new Date(today);
+          weekAgo.setDate(weekAgo.getDate() - 7);
+          return orderDay >= weekAgo;
+        
+        case 'month':
+          const monthAgo = new Date(today);
+          monthAgo.setDate(monthAgo.getDate() - 30);
+          return orderDay >= monthAgo;
+        
+        case 'thisMonth':
+          return orderDate.getMonth() === now.getMonth() && 
+                 orderDate.getFullYear() === now.getFullYear();
+        
+        default:
+          return true;
+      }
+    });
+  };
+
+  // Filter orders (search + date)
+  const filteredOrders = getFilteredOrdersByDate(orders).filter(order => {
     const matchesSearch = order.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          order.phone.includes(searchQuery);
-    const matchesProduct = filterProduct === 'all' || order.product === filterProduct;
-    const matchesCity = filterCity === 'all' || order.city === filterCity;
-    const matchesStatus = filterStatus === 'all' || order.status === filterStatus;
-    
-    return matchesSearch && matchesProduct && matchesCity && matchesStatus;
+    return matchesSearch;
   });
 
-  const handleAddOrder = () => {
-    if (!newOrder.customerName || !newOrder.phone || !newOrder.product || !newOrder.city || !newOrder.address) {
+  // Get product details by name
+  const getProductByName = (productName) => {
+    return products.find(p => p.name === productName);
+  };
+
+  const handleAddOrder = async () => {
+    if (!newOrder.customerName || !newOrder.phone || !newOrder.product || !newOrder.city || !newOrder.address || !newOrder.total) {
       setValidationMessage('Please fill in all required fields');
       setShowValidationModal(true);
       return;
     }
 
-    const order = {
-      id: `#${10000 + orders.length + 1}`,
-      customerName: newOrder.customerName,
-      phone: newOrder.phone,
-      product: newOrder.product,
-      productImage: productImages[newOrder.product],
-      quantity: newOrder.quantity,
-      city: newOrder.city,
-      address: newOrder.address,
-      total: productPrices[newOrder.product] * newOrder.quantity,
-      status: newOrder.status,
-      date: new Date().toISOString().split('T')[0],
-      paymentMethod: 'Cash on Delivery'
-    };
-
-    setOrders([order, ...orders]);
-    setShowAddModal(false);
-    setNewOrder({
-      customerName: '',
-      phone: '',
-      product: '',
-      quantity: 1,
-      city: '',
-      address: '',
-      status: 'Pending'
-    });
+    try {
+      const product = getProductByName(newOrder.product);
+      
+      await ordersAPI.create({
+        customerName: newOrder.customerName,
+        phone: newOrder.phone,
+        product: newOrder.product,
+        productImage: product?.image || newOrder.productImage,
+        quantity: parseInt(newOrder.quantity) || 1,
+        city: newOrder.city,
+        address: newOrder.address,
+        total: parseFloat(newOrder.total) || 0,
+        status: newOrder.status,
+        paymentMethod: newOrder.paymentMethod,
+        comment: newOrder.comment || ''
+      });
+      
+      fetchOrders();
+      setShowAddModal(false);
+      setNewOrder({
+        customerName: '',
+        phone: '',
+        product: '',
+        productImage: '',
+        quantity: 1,
+        city: '',
+        address: '',
+        total: '',
+        status: 'Pending',
+        paymentMethod: 'Cash on Delivery',
+        comment: ''
+      });
+    } catch (error) {
+      console.error('Error creating order:', error);
+      setValidationMessage('Failed to create order. Please try again.');
+      setShowValidationModal(true);
+    }
   };
 
-  const handleEditOrder = () => {
-    setOrders(orders.map(order => 
-      order.id === selectedOrder.id ? {
-        ...selectedOrder,
-        total: productPrices[selectedOrder.product] * selectedOrder.quantity
-      } : order
-    ));
-    setShowEditModal(false);
-    setSelectedOrder(null);
+  const handleEditOrder = async () => {
+    if (!selectedOrder.customerName || !selectedOrder.phone || !selectedOrder.product || !selectedOrder.city || !selectedOrder.address) {
+      setValidationMessage('Please fill in all required fields');
+      setShowValidationModal(true);
+      return;
+    }
+
+    try {
+      await ordersAPI.update(selectedOrder._id, {
+        customerName: selectedOrder.customerName,
+        phone: selectedOrder.phone,
+        product: selectedOrder.product,
+        productImage: selectedOrder.productImage,
+        quantity: parseInt(selectedOrder.quantity) || 1,
+        city: selectedOrder.city,
+        address: selectedOrder.address,
+        total: parseFloat(selectedOrder.total) || 0,
+        status: selectedOrder.status,
+        paymentMethod: selectedOrder.paymentMethod || 'Cash on Delivery',
+        comment: selectedOrder.comment || ''
+      });
+      
+      fetchOrders();
+      setShowEditModal(false);
+      setSelectedOrder(null);
+    } catch (error) {
+      console.error('Error updating order:', error);
+      setValidationMessage('Failed to update order. Please try again.');
+      setShowValidationModal(true);
+    }
   };
 
   const handleDeleteOrder = (orderId) => {
@@ -175,10 +218,17 @@ export default function OrdersPage() {
     setShowDeleteConfirm(true);
   };
 
-  const confirmDeleteOrder = () => {
-    setOrders(orders.filter(order => order.id !== orderToDelete));
-    setShowDeleteConfirm(false);
-    setOrderToDelete(null);
+  const confirmDeleteOrder = async () => {
+    try {
+      await ordersAPI.delete(orderToDelete);
+      fetchOrders();
+      setShowDeleteConfirm(false);
+      setOrderToDelete(null);
+    } catch (error) {
+      console.error('Error deleting order:', error);
+      setValidationMessage('Failed to delete order. Please try again.');
+      setShowValidationModal(true);
+    }
   };
 
   const handleViewOrder = (order) => {
@@ -189,6 +239,82 @@ export default function OrdersPage() {
   const handleEditClick = (order) => {
     setSelectedOrder({ ...order });
     setShowEditModal(true);
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+  };
+
+  const formatDateTime = (dateString) => {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    return date.toLocaleString('en-US', { 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  // Auto-calculate total when product or quantity changes in add modal
+  const handleProductChange = (productName) => {
+    const product = getProductByName(productName);
+    
+    if (product) {
+      const total = product.price * newOrder.quantity;
+      setNewOrder({
+        ...newOrder, 
+        product: productName, 
+        productImage: product.image,
+        total: total
+      });
+    } else {
+      setNewOrder({
+        ...newOrder, 
+        product: productName,
+        productImage: '',
+        total: ''
+      });
+    }
+  };
+
+  const handleQuantityChange = (quantity) => {
+    const product = getProductByName(newOrder.product);
+    
+    if (product) {
+      const total = product.price * quantity;
+      setNewOrder({
+        ...newOrder, 
+        quantity,
+        total: total
+      });
+    } else {
+      setNewOrder({
+        ...newOrder, 
+        quantity
+      });
+    }
+  };
+
+  // Handle product change in edit modal
+  const handleEditProductChange = (productName) => {
+    const product = getProductByName(productName);
+    
+    if (product) {
+      setSelectedOrder({
+        ...selectedOrder,
+        product: productName,
+        productImage: product.image
+      });
+    } else {
+      setSelectedOrder({
+        ...selectedOrder,
+        product: productName
+      });
+    }
   };
 
   return (
@@ -254,7 +380,7 @@ export default function OrdersPage() {
         
         .status-badge.pending { background: rgba(255, 193, 7, 0.2); color: #ffc107; }
         
-        .status-badge.shipping { background: rgba(100, 150, 255, 0.2); color: #6496ff; }
+        .status-badge.confirmed { background: rgba(100, 150, 255, 0.2); color: #6496ff; }
         
         .status-badge.cancelled { background: rgba(255, 107, 53, 0.2); color: #ff6b35; }
         
@@ -301,6 +427,10 @@ export default function OrdersPage() {
         
         .form-textarea { resize: vertical; min-height: 80px; }
         
+        .admin-comment-section { margin-top: 1.5rem; padding-top: 1.5rem; border-top: 2px solid rgba(196, 214, 0, 0.1); }
+        
+        .admin-badge { display: inline-block; background: linear-gradient(135deg, #ff6b35, #e85d2a); color: white; padding: 3px 8px; border-radius: 6px; font-size: 0.7rem; font-weight: 700; margin-left: 0.5rem; }
+        
         .modal-actions { display: flex; gap: 1rem; margin-top: 2rem; }
         
         .modal-btn { flex: 1; padding: 0.9rem; border: none; border-radius: 10px; font-weight: 700; font-size: 0.9rem; cursor: pointer; transition: all 0.3s ease; font-family: 'Cairo', sans-serif; }
@@ -324,6 +454,8 @@ export default function OrdersPage() {
         
         .detail-item.full { grid-column: 1 / -1; }
         
+        .detail-item.comment { background: rgba(255, 107, 53, 0.05); border: 1px solid rgba(255, 107, 53, 0.2); }
+        
         .product-detail { display: flex; align-items: center; gap: 1rem; }
         
         .product-detail-image { width: 60px; height: 60px; border-radius: 10px; object-fit: cover; }
@@ -331,6 +463,12 @@ export default function OrdersPage() {
         .empty-state { text-align: center; padding: 3rem; color: #999; }
         
         .empty-icon { font-size: 3rem; margin-bottom: 1rem; }
+        
+        .loading-state { text-align: center; padding: 3rem; color: #999; }
+        
+        .loading-spinner { font-size: 2rem; margin-bottom: 1rem; animation: spin 1s linear infinite; }
+        
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         
         /* Responsive */
         @media (max-width: 1024px) {
@@ -390,21 +528,21 @@ export default function OrdersPage() {
               className="filter-select"
               value={filterProduct}
               onChange={(e) => setFilterProduct(e.target.value)}
+              disabled={loadingProducts}
             >
               <option value="all">All Products</option>
               {products.map(product => (
-                <option key={product} value={product}>{product}</option>
+                <option key={product._id} value={product.name}>{product.name}</option>
               ))}
             </select>
 
             <select 
               className="filter-select"
-              value={filterCity}
-              onChange={(e) => setFilterCity(e.target.value)}
+              value={filterDate}
+              onChange={(e) => setFilterDate(e.target.value)}
             >
-              <option value="all">All Cities</option>
-              {cities.map(city => (
-                <option key={city} value={city}>{city}</option>
+              {dateFilters.map(filter => (
+                <option key={filter.value} value={filter.value}>{filter.label}</option>
               ))}
             </select>
 
@@ -428,14 +566,19 @@ export default function OrdersPage() {
 
         {/* Orders Table */}
         <div className="orders-table-container">
-          {filteredOrders.length > 0 ? (
+          {loading ? (
+            <div className="loading-state">
+              <div className="loading-spinner">⏳</div>
+              <div>Loading orders...</div>
+            </div>
+          ) : filteredOrders.length > 0 ? (
             <table className="orders-table">
               <thead>
                 <tr>
                   <th>Order ID</th>
                   <th>Customer</th>
                   <th>Product</th>
-                  <th>Date</th>
+                  <th>Date & Time</th>
                   <th>Status</th>
                   <th>Total</th>
                   <th>Actions</th>
@@ -443,8 +586,8 @@ export default function OrdersPage() {
               </thead>
               <tbody>
                 {filteredOrders.map((order) => (
-                  <tr key={order.id}>
-                    <td className="order-id">{order.id}</td>
+                  <tr key={order._id}>
+                    <td className="order-id">#{order._id?.slice(-6) || 'N/A'}</td>
                     <td>
                       <div>
                         <div style={{ fontWeight: '600' }}>{order.customerName}</div>
@@ -453,14 +596,19 @@ export default function OrdersPage() {
                     </td>
                     <td>
                       <div className="product-cell">
-                        <img src={order.productImage} alt={order.product} className="product-image" />
+                        <img src={order.productImage || 'https://via.placeholder.com/40'} alt={order.product} className="product-image" />
                         <div>
                           <div style={{ fontWeight: '600' }}>{order.product}</div>
                           <div style={{ fontSize: '0.8rem', color: '#999' }}>Qty: {order.quantity}</div>
                         </div>
                       </div>
                     </td>
-                    <td>{order.date}</td>
+                    <td>
+                      <div style={{ fontWeight: '600' }}>{formatDate(order.createdAt)}</div>
+                      <div style={{ fontSize: '0.75rem', color: '#999' }}>
+                        {new Date(order.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                      </div>
+                    </td>
                     <td>
                       <span className={`status-badge ${order.status.toLowerCase()}`}>
                         {order.status}
@@ -475,7 +623,7 @@ export default function OrdersPage() {
                         <button className="action-btn edit" onClick={() => handleEditClick(order)} title="Edit">
                           ✏️
                         </button>
-                        <button className="action-btn delete" onClick={() => handleDeleteOrder(order.id)} title="Delete">
+                        <button className="action-btn delete" onClick={() => handleDeleteOrder(order._id)} title="Delete">
                           🗑️
                         </button>
                       </div>
@@ -529,11 +677,12 @@ export default function OrdersPage() {
               <select
                 className="form-input"
                 value={newOrder.product}
-                onChange={(e) => setNewOrder({...newOrder, product: e.target.value})}
+                onChange={(e) => handleProductChange(e.target.value)}
+                disabled={loadingProducts}
               >
                 <option value="">Select a product</option>
                 {products.map(product => (
-                  <option key={product} value={product}>{product}</option>
+                  <option key={product._id} value={product.name}>{product.name} - {product.price} DT</option>
                 ))}
               </select>
             </div>
@@ -545,7 +694,18 @@ export default function OrdersPage() {
                 className="form-input"
                 min="1"
                 value={newOrder.quantity}
-                onChange={(e) => setNewOrder({...newOrder, quantity: parseInt(e.target.value) || 1})}
+                onChange={(e) => handleQuantityChange(parseInt(e.target.value) || 1)}
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Total Price (DT) *</label>
+              <input
+                type="number"
+                className="form-input"
+                value={newOrder.total}
+                onChange={(e) => setNewOrder({...newOrder, total: e.target.value})}
+                placeholder="Auto-calculated"
               />
             </div>
 
@@ -586,6 +746,23 @@ export default function OrdersPage() {
               </select>
             </div>
 
+            {/* Admin Comment Section */}
+            <div className="admin-comment-section">
+              <div className="form-group">
+                <label className="form-label">
+                  Admin Comment (Internal)
+                  <span className="admin-badge">ADMIN ONLY</span>
+                </label>
+                <textarea
+                  className="form-input form-textarea"
+                  value={newOrder.comment}
+                  onChange={(e) => setNewOrder({...newOrder, comment: e.target.value})}
+                  placeholder="Add internal notes about this order (e.g., 'Customer requested express delivery', 'VIP client', etc.)"
+                  rows="3"
+                />
+              </div>
+            </div>
+
             <div className="modal-actions">
               <button className="modal-btn secondary" onClick={() => setShowAddModal(false)}>
                 Cancel
@@ -610,12 +787,12 @@ export default function OrdersPage() {
             <div className="order-detail-grid">
               <div className="detail-item">
                 <div className="detail-label">Order ID</div>
-                <div className="detail-value" style={{ color: '#c4d600' }}>{selectedOrder.id}</div>
+                <div className="detail-value" style={{ color: '#c4d600' }}>#{selectedOrder._id?.slice(-6) || 'N/A'}</div>
               </div>
 
               <div className="detail-item">
-                <div className="detail-label">Date</div>
-                <div className="detail-value">{selectedOrder.date}</div>
+                <div className="detail-label">Date & Time</div>
+                <div className="detail-value">{formatDateTime(selectedOrder.createdAt)}</div>
               </div>
 
               <div className="detail-item">
@@ -631,7 +808,7 @@ export default function OrdersPage() {
               <div className="detail-item full">
                 <div className="detail-label">Product</div>
                 <div className="product-detail">
-                  <img src={selectedOrder.productImage} alt={selectedOrder.product} className="product-detail-image" />
+                  <img src={selectedOrder.productImage || 'https://via.placeholder.com/60'} alt={selectedOrder.product} className="product-detail-image" />
                   <div>
                     <div className="detail-value">{selectedOrder.product}</div>
                     <div style={{ color: '#999', fontSize: '0.85rem' }}>Quantity: {selectedOrder.quantity}</div>
@@ -667,6 +844,19 @@ export default function OrdersPage() {
                 <div className="detail-label">Total Amount</div>
                 <div className="detail-value" style={{ color: '#ff6b35', fontSize: '1.3rem' }}>{selectedOrder.total} DT</div>
               </div>
+
+              {/* Admin Comment in View Modal */}
+              {selectedOrder.comment && (
+                <div className="detail-item full comment">
+                  <div className="detail-label">
+                    Admin Comment
+                    <span className="admin-badge">ADMIN ONLY</span>
+                  </div>
+                  <div className="detail-value" style={{ whiteSpace: 'pre-wrap' }}>
+                    {selectedOrder.comment || 'No comments'}
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="modal-actions">
@@ -712,10 +902,11 @@ export default function OrdersPage() {
               <select
                 className="form-input"
                 value={selectedOrder.product}
-                onChange={(e) => setSelectedOrder({...selectedOrder, product: e.target.value, productImage: productImages[e.target.value]})}
+                onChange={(e) => handleEditProductChange(e.target.value)}
+                disabled={loadingProducts}
               >
                 {products.map(product => (
-                  <option key={product} value={product}>{product}</option>
+                  <option key={product._id} value={product.name}>{product.name}</option>
                 ))}
               </select>
             </div>
@@ -728,6 +919,16 @@ export default function OrdersPage() {
                 min="1"
                 value={selectedOrder.quantity}
                 onChange={(e) => setSelectedOrder({...selectedOrder, quantity: parseInt(e.target.value) || 1})}
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Total Price (DT) *</label>
+              <input
+                type="number"
+                className="form-input"
+                value={selectedOrder.total}
+                onChange={(e) => setSelectedOrder({...selectedOrder, total: e.target.value})}
               />
             </div>
 
@@ -764,6 +965,23 @@ export default function OrdersPage() {
                   <option key={status} value={status}>{status}</option>
                 ))}
               </select>
+            </div>
+
+            {/* Admin Comment in Edit Modal */}
+            <div className="admin-comment-section">
+              <div className="form-group">
+                <label className="form-label">
+                  Admin Comment (Internal)
+                  <span className="admin-badge">ADMIN ONLY</span>
+                </label>
+                <textarea
+                  className="form-input form-textarea"
+                  value={selectedOrder.comment || ''}
+                  onChange={(e) => setSelectedOrder({...selectedOrder, comment: e.target.value})}
+                  placeholder="Add internal notes about this order"
+                  rows="3"
+                />
+              </div>
             </div>
 
             <div className="modal-actions">

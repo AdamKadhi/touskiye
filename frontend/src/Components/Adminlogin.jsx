@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-
+import { authAPI } from '../services/api';
 export default function AdminLogin({ onLogin }) {
   const [credentials, setCredentials] = useState({
     username: '',
@@ -8,25 +8,27 @@ export default function AdminLogin({ onLogin }) {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Default admin credentials (you can change these)
-  const ADMIN_USERNAME = 'admin';
-  const ADMIN_PASSWORD = 'admin123';
+  
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
+ const handleSubmit = async (e) => {
+  e.preventDefault();
+  setError('');
+  setLoading(true);
 
-    // Simulate a small delay for better UX
-    setTimeout(() => {
-      if (credentials.username === ADMIN_USERNAME && credentials.password === ADMIN_PASSWORD) {
-        onLogin();
-      } else {
-        setError('Invalid username or password');
-        setLoading(false);
-      }
-    }, 800);
-  };
+  try {
+    const response = await authAPI.login(credentials);
+    
+    // Save token
+    localStorage.setItem('token', response.data.token);
+    localStorage.setItem('user', JSON.stringify(response.data.user));
+    
+    // Call onLogin callback
+    onLogin();
+  } catch (error) {
+    setError(error.response?.data?.message || 'Invalid credentials');
+    setLoading(false);
+  }
+};
 
   return (
     <div style={{ fontFamily: "'Cairo', sans-serif" }}>
