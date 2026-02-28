@@ -29,6 +29,12 @@ export default function ProductsPage() {
     adLink: ''
   });
 
+  // ✅ NEW: File upload states
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState('');
+  const [editImageFile, setEditImageFile] = useState(null);
+  const [editImagePreview, setEditImagePreview] = useState('');
+
   const categories = ['Accessories', 'Electronics', 'Bags', 'Fashion', 'Sports'];
   const statuses = ['Shown', 'Hidden', 'Out of Stock'];
 
@@ -53,15 +59,74 @@ export default function ProductsPage() {
     }
   };
 
+  // ✅ NEW: Handle image file selection for new product
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        setValidationMessage('Please select an image file');
+        setShowValidationModal(true);
+        return;
+      }
+      
+      // Validate file size (5MB max)
+      if (file.size > 5 * 1024 * 1024) {
+        setValidationMessage('Image size must be less than 5MB');
+        setShowValidationModal(true);
+        return;
+      }
+      
+      setImageFile(file);
+      
+      // Create preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // ✅ NEW: Handle image file selection for edit product
+  const handleEditImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        setValidationMessage('Please select an image file');
+        setShowValidationModal(true);
+        return;
+      }
+      
+      // Validate file size (5MB max)
+      if (file.size > 5 * 1024 * 1024) {
+        setValidationMessage('Image size must be less than 5MB');
+        setShowValidationModal(true);
+        return;
+      }
+      
+      setEditImageFile(file);
+      
+      // Create preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setEditImagePreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   // Filter products (frontend filtering for search)
   const filteredProducts = products.filter(product => {
     const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesSearch;
   });
 
+  // ✅ UPDATED: Handle add product with file upload
   const handleAddProduct = async () => {
-    if (!newProduct.name || !newProduct.category || !newProduct.price || !newProduct.stock || !newProduct.image) {
-      setValidationMessage('Please fill in all required fields');
+    if (!newProduct.name || !newProduct.category || !newProduct.price || !newProduct.stock || !imageFile) {
+      setValidationMessage('Please fill in all required fields (including image)');
       setShowValidationModal(true);
       return;
     }
@@ -74,7 +139,7 @@ export default function ProductsPage() {
         originalPrice: newProduct.originalPrice ? parseFloat(newProduct.originalPrice) : undefined,
         stock: parseInt(newProduct.stock) || 0,
         status: newProduct.status,
-        image: newProduct.image,
+        image: imageFile, // ✅ Send file instead of URL
         description: newProduct.description || '',
         adLink: newProduct.adLink || ''
       });
@@ -92,6 +157,9 @@ export default function ProductsPage() {
         description: '',
         adLink: ''
       });
+      // ✅ NEW: Reset file states
+      setImageFile(null);
+      setImagePreview('');
     } catch (error) {
       console.error('Error creating product:', error);
       setValidationMessage('Failed to create product. Please try again.');
@@ -99,29 +167,39 @@ export default function ProductsPage() {
     }
   };
 
+  // ✅ UPDATED: Handle edit product with optional file upload
   const handleEditProduct = async () => {
-    if (!selectedProduct.name || !selectedProduct.category || !selectedProduct.price || !selectedProduct.image) {
+    if (!selectedProduct.name || !selectedProduct.category || !selectedProduct.price) {
       setValidationMessage('Please fill in all required fields');
       setShowValidationModal(true);
       return;
     }
 
     try {
-      await productsAPI.update(selectedProduct._id, {
+      const updateData = {
         name: selectedProduct.name,
         category: selectedProduct.category,
         price: parseFloat(selectedProduct.price) || 0,
         originalPrice: selectedProduct.originalPrice ? parseFloat(selectedProduct.originalPrice) : undefined,
         stock: parseInt(selectedProduct.stock) || 0,
         status: selectedProduct.status,
-        image: selectedProduct.image,
         description: selectedProduct.description || '',
         adLink: selectedProduct.adLink || ''
-      });
+      };
+      
+      // ✅ NEW: Only include image if new file selected
+      if (editImageFile) {
+        updateData.image = editImageFile;
+      }
+      
+      await productsAPI.update(selectedProduct._id, updateData);
       
       fetchProducts();
       setShowEditModal(false);
       setSelectedProduct(null);
+      // ✅ NEW: Reset edit file states
+      setEditImageFile(null);
+      setEditImagePreview('');
     } catch (error) {
       console.error('Error updating product:', error);
       setValidationMessage('Failed to update product. Please try again.');
@@ -152,9 +230,12 @@ export default function ProductsPage() {
     setShowViewModal(true);
   };
 
+  // ✅ UPDATED: Reset edit image states when opening edit modal
   const handleEditClick = (product) => {
     setSelectedProduct({ ...product });
     setShowEditModal(true);
+    setEditImageFile(null);
+    setEditImagePreview('');
   };
 
   const getStatusColor = (status) => {
@@ -354,6 +435,99 @@ export default function ProductsPage() {
         .loading-spinner { font-size: 2rem; margin-bottom: 1rem; animation: spin 1s linear infinite; }
         
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+        /* ✅ NEW: Image Upload Styles */
+        .image-upload-section {
+          margin-bottom: 1.2rem;
+        }
+
+        .image-upload-label {
+          display: block;
+          color: #c4d600;
+          font-size: 0.85rem;
+          font-weight: 700;
+          margin-bottom: 0.5rem;
+          text-transform: uppercase;
+          letter-spacing: 1px;
+        }
+
+        .image-upload-container {
+          border: 2px dashed rgba(196, 214, 0, 0.3);
+          border-radius: 12px;
+          padding: 1.5rem;
+          text-align: center;
+          background: rgba(196, 214, 0, 0.05);
+          cursor: pointer;
+          transition: all 0.3s ease;
+        }
+
+        .image-upload-container:hover {
+          border-color: #c4d600;
+          background: rgba(196, 214, 0, 0.1);
+        }
+
+        .image-upload-container.has-image {
+          padding: 0;
+          border: 2px solid rgba(196, 214, 0, 0.3);
+        }
+
+        .image-preview-container {
+          position: relative;
+          width: 100%;
+          height: 200px;
+          border-radius: 10px;
+          overflow: hidden;
+        }
+
+        .image-preview {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+
+        .image-preview-overlay {
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(0, 0, 0, 0.7);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          opacity: 0;
+          transition: opacity 0.3s ease;
+        }
+
+        .image-preview-container:hover .image-preview-overlay {
+          opacity: 1;
+        }
+
+        .change-image-text {
+          color: white;
+          font-weight: 700;
+          font-size: 0.9rem;
+        }
+
+        .upload-icon {
+          font-size: 2.5rem;
+          margin-bottom: 0.8rem;
+        }
+
+        .upload-text {
+          color: #999;
+          font-size: 0.85rem;
+          margin-bottom: 0.5rem;
+        }
+
+        .upload-hint {
+          color: #666;
+          font-size: 0.75rem;
+        }
+
+        .file-input-hidden {
+          display: none;
+        }
         
         /* Responsive */
         @media (max-width: 1024px) {
@@ -471,7 +645,11 @@ export default function ProductsPage() {
                   <tr key={product._id}>
                     <td className="product-id">PRD-{product._id?.slice(-6) || 'N/A'}</td>
                     <td className="product-image-cell">
-                      <img src={product.image || 'https://via.placeholder.com/60'} alt={product.name} className="product-table-image" />
+                      <img 
+                        src={product.image.startsWith('/uploads') ? `http://localhost:5000${product.image}` : product.image} 
+                        alt={product.name} 
+                        className="product-table-image" 
+                      />
                     </td>
                     <td>
                       <div className="product-name-cell">{product.name}</div>
@@ -622,15 +800,37 @@ export default function ProductsPage() {
               </div>
             </div>
 
+            {/* ✅ NEW: File Upload Section for Add Product */}
             <div className="form-group full">
-              <label className="form-label">Image URL *</label>
-              <input
-                type="text"
-                className="form-input"
-                value={newProduct.image}
-                onChange={(e) => setNewProduct({...newProduct, image: e.target.value})}
-                placeholder="https://example.com/image.jpg"
-              />
+              <div className="image-upload-section">
+                <label className="image-upload-label">Product Image *</label>
+                <div 
+                  className={`image-upload-container ${imagePreview ? 'has-image' : ''}`}
+                  onClick={() => document.getElementById('image-upload').click()}
+                >
+                  {imagePreview ? (
+                    <div className="image-preview-container">
+                      <img src={imagePreview} alt="Preview" className="image-preview" />
+                      <div className="image-preview-overlay">
+                        <span className="change-image-text">Click to change image</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="upload-icon">📸</div>
+                      <div className="upload-text">Click to upload image</div>
+                      <div className="upload-hint">JPEG, PNG, GIF or WEBP (Max 5MB)</div>
+                    </>
+                  )}
+                </div>
+                <input
+                  id="image-upload"
+                  type="file"
+                  className="file-input-hidden"
+                  accept="image/*"
+                  onChange={handleImageChange}
+                />
+              </div>
             </div>
 
             <div className="form-group full">
@@ -676,7 +876,11 @@ export default function ProductsPage() {
             </div>
 
             <div className="product-view-header">
-              <img src={selectedProduct.image || 'https://via.placeholder.com/200'} alt={selectedProduct.name} className="product-view-image" />
+              <img 
+                src={selectedProduct.image.startsWith('/uploads') ? `http://localhost:5000${selectedProduct.image}` : selectedProduct.image} 
+                alt={selectedProduct.name} 
+                className="product-view-image" 
+              />
               <div className="product-view-info">
                 <div className="product-view-name">{selectedProduct.name}</div>
                 <div className="product-view-category">{selectedProduct.category}</div>
@@ -828,14 +1032,36 @@ export default function ProductsPage() {
               </div>
             </div>
 
+            {/* ✅ NEW: File Upload Section for Edit Product */}
             <div className="form-group full">
-              <label className="form-label">Image URL *</label>
-              <input
-                type="text"
-                className="form-input"
-                value={selectedProduct.image}
-                onChange={(e) => setSelectedProduct({...selectedProduct, image: e.target.value})}
-              />
+              <div className="image-upload-section">
+                <label className="image-upload-label">Product Image</label>
+                <div 
+                  className={`image-upload-container has-image`}
+                  onClick={() => document.getElementById('edit-image-upload').click()}
+                >
+                  <div className="image-preview-container">
+                    <img 
+                      src={editImagePreview || (selectedProduct.image.startsWith('/uploads') ? `http://localhost:5000${selectedProduct.image}` : selectedProduct.image)} 
+                      alt="Preview" 
+                      className="image-preview" 
+                    />
+                    <div className="image-preview-overlay">
+                      <span className="change-image-text">Click to change image</span>
+                    </div>
+                  </div>
+                </div>
+                <input
+                  id="edit-image-upload"
+                  type="file"
+                  className="file-input-hidden"
+                  accept="image/*"
+                  onChange={handleEditImageChange}
+                />
+                <div style={{ fontSize: '0.75rem', color: '#999', marginTop: '0.5rem' }}>
+                  Leave unchanged to keep current image
+                </div>
+              </div>
             </div>
 
             <div className="form-group full">

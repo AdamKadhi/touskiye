@@ -1,4 +1,6 @@
 const Product = require('../models/Product');
+const path = require('path');
+const fs = require('fs');
 
 // @desc    Get all products
 // @route   GET /api/products
@@ -77,13 +79,44 @@ exports.getProduct = async (req, res) => {
 // @access  Private (Admin only)
 exports.createProduct = async (req, res) => {
   try {
-    const product = await Product.create(req.body);
+    const { name, category, price, originalPrice, stock, status, description, adLink } = req.body;
+
+    // Check if image was uploaded
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'Product image is required'
+      });
+    }
+
+    // Create image URL path
+    const imageUrl = `/uploads/${req.file.filename}`;
+
+    const product = await Product.create({
+      name,
+      category,
+      price,
+      originalPrice: originalPrice || price,
+      stock,
+      status,
+      image: imageUrl,
+      description,
+      adLink
+    });
 
     res.status(201).json({
       success: true,
       data: product
     });
   } catch (error) {
+    // Delete uploaded file if product creation fails
+    if (req.file) {
+      const filePath = path.join(__dirname, '../uploads', req.file.filename);
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+    }
+
     res.status(400).json({
       success: false,
       message: 'Failed to create product',
@@ -106,7 +139,23 @@ exports.updateProduct = async (req, res) => {
       });
     }
 
-    product = await Product.findByIdAndUpdate(req.params.id, req.body, {
+    const updateData = { ...req.body };
+
+    // If new image is uploaded
+    if (req.file) {
+      // Delete old image file if it exists
+      if (product.image && product.image.startsWith('/uploads/')) {
+        const oldImagePath = path.join(__dirname, '..', product.image);
+        if (fs.existsSync(oldImagePath)) {
+          fs.unlinkSync(oldImagePath);
+        }
+      }
+
+      // Set new image URL
+      updateData.image = `/uploads/${req.file.filename}`;
+    }
+
+    product = await Product.findByIdAndUpdate(req.params.id, updateData, {
       new: true,
       runValidators: true
     });
@@ -116,6 +165,14 @@ exports.updateProduct = async (req, res) => {
       data: product
     });
   } catch (error) {
+    // Delete uploaded file if update fails
+    if (req.file) {
+      const filePath = path.join(__dirname, '../uploads', req.file.filename);
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+    }
+
     res.status(400).json({
       success: false,
       message: 'Failed to update product',
@@ -136,6 +193,14 @@ exports.deleteProduct = async (req, res) => {
         success: false,
         message: 'Product not found'
       });
+    }
+
+    // Delete product image file if it exists
+    if (product.image && product.image.startsWith('/uploads/')) {
+      const imagePath = path.join(__dirname, '..', product.image);
+      if (fs.existsSync(imagePath)) {
+        fs.unlinkSync(imagePath);
+      }
     }
 
     await product.deleteOne();

@@ -48,8 +48,43 @@ export const productsAPI = {
   getAll: (params) => api.get('/products', { params }),
   getPublic: () => api.get('/products/public'),
   getOne: (id) => api.get(`/products/${id}`),
-  create: (data) => api.post('/products', data),
-  update: (id, data) => api.put(`/products/${id}`, data),
+  
+  // ✅ UPDATED: Create product with file upload
+  create: (productData) => {
+    const formData = new FormData();
+    
+    // Append all product fields
+    Object.keys(productData).forEach(key => {
+      if (productData[key] !== undefined && productData[key] !== null) {
+        formData.append(key, productData[key]);
+      }
+    });
+    
+    return api.post('/products', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    });
+  },
+  
+  // ✅ UPDATED: Update product with optional file upload
+  update: (id, productData) => {
+    const formData = new FormData();
+    
+    // Append all product fields
+    Object.keys(productData).forEach(key => {
+      if (productData[key] !== undefined && productData[key] !== null) {
+        formData.append(key, productData[key]);
+      }
+    });
+    
+    return api.put(`/products/${id}`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    });
+  },
+  
   delete: (id) => api.delete(`/products/${id}`)
 };
 

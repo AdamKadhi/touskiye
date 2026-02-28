@@ -5,6 +5,7 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 const mongoose = require('mongoose');
+const path = require('path');
 const connectDB = require('./config/database');
 
 // Load environment variables
@@ -16,8 +17,10 @@ connectDB();
 // Initialize Express app
 const app = express();
 
-// Security middleware
-app.use(helmet());
+// Security middleware - Configure helmet to allow uploads
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" }
+}));
 
 // Rate limiting - Increased limit to prevent blocking during development
 const limiter = rateLimit({
@@ -58,6 +61,9 @@ app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// ✅ NEW: Serve uploaded files statically
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
 // Logging
 if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
@@ -84,7 +90,8 @@ app.get('/', (req, res) => {
       health: '/health',
       auth: '/api/auth',
       products: '/api/products',
-      orders: '/api/orders'
+      orders: '/api/orders',
+      uploads: '/uploads' // ✅ NEW
     }
   });
 });
@@ -131,6 +138,7 @@ const server = app.listen(PORT, () => {
     ║  Environment: ${process.env.NODE_ENV || 'development'}          ║
     ║  URL: http://localhost:${PORT}         ║
     ║  Health: http://localhost:${PORT}/health  ║
+    ║  Uploads: http://localhost:${PORT}/uploads ║
     ╚══════════════════════════════════════╝
   `);
 });

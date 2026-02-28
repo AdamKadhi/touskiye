@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const upload = require('../config/upload');
 const {
   getProducts,
   getProduct,
@@ -19,10 +20,10 @@ router.use(protect); // All routes after this require authentication
 
 router.route('/')
   .get(getProducts)
-  .post(createProduct);
+  .post(upload.single('image'), createProduct); // Add multer middleware for image upload
 
 router.route('/:id')
-  .put(updateProduct)
+  .put(upload.single('image'), updateProduct) // Add multer middleware for image upload
   .delete(deleteProduct);
 
 module.exports = router;
