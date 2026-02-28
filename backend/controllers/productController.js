@@ -153,13 +153,15 @@ exports.deleteProduct = async (req, res) => {
   }
 };
 
-// @desc    Get public products (shown only)
+// @desc    Get public products (shown and out of stock)
 // @route   GET /api/products/public
 // @access  Public
 exports.getPublicProducts = async (req, res) => {
   try {
-    const products = await Product.find({ status: 'Shown' })
-      .sort({ createdAt: -1 });
+    // Show products with status "Shown" OR "Out of Stock"
+    const products = await Product.find({ 
+      status: { $in: ['Shown', 'Out of Stock'] }
+    }).sort({ createdAt: -1 });
 
     res.status(200).json({
       success: true,

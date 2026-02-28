@@ -135,8 +135,10 @@ export default function HomePage({ cartItems, cartCount, addToCart, goToCheckout
   const handleMouseUp = () => {
     setIsDragging(false);
   };
-const [products, setProducts] = useState([]);
+
+  const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  
   useEffect(() => {
     fetchProducts();
   }, []);
@@ -151,7 +153,13 @@ const [products, setProducts] = useState([]);
       setLoading(false);
     }
   };
- if (loading) {
+
+  // ✅ NEW: Check if product is out of stock
+  const isOutOfStock = (product) => {
+    return product.stock === 0 || product.status === 'Out of Stock';
+  };
+
+  if (loading) {
     return (
       <div style={{ 
         display: 'flex', 
@@ -170,6 +178,7 @@ const [products, setProducts] = useState([]);
       </div>
     );
   }
+
   return (
     
     <div dir="rtl" style={{ fontFamily: "'Cairo', sans-serif" }}>
@@ -528,14 +537,70 @@ const [products, setProducts] = useState([]);
           gap: 0.5rem;
         }
 
-        .add-to-cart-btn:hover {
+        .add-to-cart-btn:hover:not(:disabled) {
           transform: translateY(-2px);
           box-shadow: 0 6px 20px rgba(255, 107, 53, 0.4);
           background: linear-gradient(135deg, #e85d2a, #ff6b35);
         }
 
-        .add-to-cart-btn:active {
+        .add-to-cart-btn:active:not(:disabled) {
           transform: translateY(0);
+        }
+
+        /* ✅ NEW: Out of Stock Styles */
+        .product-card-overlay {
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(0, 0, 0, 0.6);
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          z-index: 2;
+          border-radius: 20px 20px 0 0;
+        }
+
+        .out-of-stock-badge {
+          background: linear-gradient(135deg, #ff6b35, #e85d2a);
+          color: white;
+          padding: 0.6rem 1.2rem;
+          border-radius: 25px;
+          font-weight: 700;
+          font-size: 1rem;
+          margin-bottom: 0.8rem;
+          box-shadow: 0 4px 15px rgba(255, 107, 53, 0.4);
+          letter-spacing: 1px;
+        }
+
+        .coming-soon-message {
+          color: #c4d600;
+          font-size: 1.1rem;
+          font-weight: 600;
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+        }
+
+        .product-card.out-of-stock {
+          opacity: 0.85;
+        }
+
+        .product-card.out-of-stock .product-image {
+          filter: grayscale(0.3);
+        }
+
+        .add-to-cart-btn:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+          background: #999;
+        }
+
+        .add-to-cart-btn:disabled:hover {
+          transform: none;
+          box-shadow: none;
         }
 
         .footer {
@@ -1135,7 +1200,7 @@ const [products, setProducts] = useState([]);
         
         <div className="products-grid">
           {products.map((product) => (
-            <div key={product.id} className="product-card">
+            <div key={product._id || product.id} className={`product-card ${isOutOfStock(product) ? 'out-of-stock' : ''}`}>
               <div 
                 className="product-image-container"
                 onClick={() => openImageModal(product)}
@@ -1145,10 +1210,21 @@ const [products, setProducts] = useState([]);
                   alt={product.name} 
                   className="product-image"
                 />
-                <div className="product-badge">{product.badge}</div>
-                {product.discount && (
+                <div className="product-badge">{product.category}</div>
+                {product.discount > 0 && !isOutOfStock(product) && (
                   <div className="discount-badge">
                     <span>-{product.discount}%</span>
+                  </div>
+                )}
+                
+                {/* ✅ NEW: Out of Stock Overlay */}
+                {isOutOfStock(product) && (
+                  <div className="product-card-overlay">
+                    <div className="out-of-stock-badge">نفذت الكمية</div>
+                    <div className="coming-soon-message">
+                      <span>🔄</span>
+                      <span>سيعود قريباً</span>
+                    </div>
                   </div>
                 )}
               </div>
@@ -1157,7 +1233,7 @@ const [products, setProducts] = useState([]);
                 <p className="product-description">{product.description}</p>
                 <div className="product-footer">
                   <div className="product-price-section">
-                    {product.originalPrice && (
+                    {product.originalPrice && product.originalPrice > product.price && (
                       <div className="product-old-price">
                         {product.originalPrice} دينار
                       </div>
@@ -1169,9 +1245,10 @@ const [products, setProducts] = useState([]);
                   <button 
                     className="add-to-cart-btn"
                     onClick={() => handleAddToCart(product)}
+                    disabled={isOutOfStock(product)}
                   >
-                    <span>أضف للسلة</span>
-                    <span>+</span>
+                    <span>{isOutOfStock(product) ? 'غير متوفر' : 'أضف للسلة'}</span>
+                    <span>{isOutOfStock(product) ? '✕' : '+'}</span>
                   </button>
                 </div>
               </div>
