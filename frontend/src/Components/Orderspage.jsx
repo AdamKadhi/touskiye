@@ -596,7 +596,7 @@ export default function OrdersPage() {
                     </td>
                     <td>
                       <div className="product-cell">
-                        <img src={order.productImage || 'https://via.placeholder.com/40'} alt={order.product} className="product-image" />
+                        <img src={order.productImage?.startsWith('/uploads') ? `http://localhost:5000${order.productImage}` : (order.productImage || 'https://via.placeholder.com/40')} alt={order.product} className="product-image" />
                         <div>
                           <div style={{ fontWeight: '600' }}>{order.product}</div>
                           <div style={{ fontSize: '0.8rem', color: '#999' }}>Qty: {order.quantity}</div>
@@ -808,7 +808,7 @@ export default function OrdersPage() {
               <div className="detail-item full">
                 <div className="detail-label">Product</div>
                 <div className="product-detail">
-                  <img src={selectedOrder.productImage || 'https://via.placeholder.com/60'} alt={selectedOrder.product} className="product-detail-image" />
+                  <img src={selectedOrder.productImage?.startsWith('/uploads') ? `http://localhost:5000${selectedOrder.productImage}` : (selectedOrder.productImage || 'https://via.placeholder.com/60')} alt={selectedOrder.product} className="product-detail-image" />
                   <div>
                     <div className="detail-value">{selectedOrder.product}</div>
                     <div style={{ color: '#999', fontSize: '0.85rem' }}>Quantity: {selectedOrder.quantity}</div>

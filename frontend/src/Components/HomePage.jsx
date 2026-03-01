@@ -1206,10 +1206,10 @@ export default function HomePage({ cartItems, cartCount, addToCart, goToCheckout
                 onClick={() => openImageModal(product)}
               >
                 <img 
-                  src={product.image} 
-                  alt={product.name} 
-                  className="product-image"
-                />
+  src={product.image.startsWith('/uploads') ? `http://localhost:5000${product.image}` : product.image} 
+  alt={product.name} 
+  className="product-image"
+/>
                 <div className="product-badge">{product.category}</div>
                 {product.discount > 0 && !isOutOfStock(product) && (
                   <div className="discount-badge">
@@ -1328,7 +1328,7 @@ export default function HomePage({ cartItems, cartCount, addToCart, goToCheckout
               onWheel={handleWheel}
             >
               <img 
-                src={selectedProduct.image} 
+                src={selectedProduct.image.startsWith('/uploads') ? `http://localhost:5000${selectedProduct.image}` : selectedProduct.image} 
                 alt={selectedProduct.name}
                 className={`modal-image ${zoomLevel > 1 ? 'zoomed' : ''}`}
                 style={{ 
