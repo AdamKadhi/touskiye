@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import HomePage from './Components/HomePage';
+import ProductDetailPage from './Components/ProductDetailPage';
 import CheckoutCart from './Components/CheckoutCart';
 import ThankYouPage from './Components/Thankyoupage';
 import AdminLogin from './Components/Adminlogin';
 import AdminDashboard from './Components/Admindashboard';
 import './App.css';
 
-function App() {
-  // Page navigation state
-  const [currentPage, setCurrentPage] = useState('home'); // 'home', 'checkout', 'thankyou', 'admin-login', 'admin'
-  
+// Wrapper component to handle navigation
+function AppContent() {
   // Shopping cart state
   const [cartItems, setCartItems] = useState([]);
   const [cartCount, setCartCount] = useState(0);
@@ -18,6 +18,8 @@ function App() {
   // Admin authentication state
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
 
+  const navigate = useNavigate();
+
   // Check localStorage for admin session on mount
   useEffect(() => {
     const adminSession = localStorage.getItem('adminSession');
@@ -25,20 +27,6 @@ function App() {
       setIsAdminAuthenticated(true);
     }
   }, []);
-
-  // Check URL on mount to see if accessing admin
-  useEffect(() => {
-    const path = window.location.pathname;
-    const hash = window.location.hash;
-    
-    if (path === '/admin' || hash === '#admin') {
-      if (isAdminAuthenticated) {
-        setCurrentPage('admin');
-      } else {
-        setCurrentPage('admin-login');
-      }
-    }
-  }, [isAdminAuthenticated]);
 
   // Shopping cart functions
   const addToCart = (product) => {
@@ -77,110 +65,134 @@ function App() {
 
   // Navigation functions
   const goToCheckout = () => {
-    setCurrentPage('checkout');
+    navigate('/checkout');
   };
 
   const goToHome = () => {
-    setCurrentPage('home');
-    window.history.pushState({}, '', '/');
+    navigate('/');
   };
 
   const goToAdminLogin = () => {
-    setCurrentPage('admin-login');
-    window.history.pushState({}, '', '/admin');
+    navigate('/admin');
   };
 
   const handleOrderComplete = (data) => {
     setOrderData(data);
-    setCurrentPage('thankyou');
+    navigate('/thankyou');
   };
 
   const handleBackToHomeFromThankYou = () => {
     setCartItems([]);
     setCartCount(0);
     setOrderData(null);
-    setCurrentPage('home');
+    navigate('/');
   };
 
   // Admin authentication functions
   const handleAdminLogin = () => {
     setIsAdminAuthenticated(true);
     localStorage.setItem('adminSession', 'true');
-    setCurrentPage('admin');
+    navigate('/admin/dashboard');
   };
 
   const handleAdminLogout = () => {
     setIsAdminAuthenticated(false);
     localStorage.removeItem('adminSession');
-    setCurrentPage('home');
-    window.history.pushState({}, '', '/');
+    navigate('/');
   };
 
-  // Render current page
-  const renderPage = () => {
-    switch (currentPage) {
-      case 'home':
-        return (
-          <HomePage 
-            cartItems={cartItems}
-            cartCount={cartCount}
-            addToCart={addToCart}
-            goToCheckout={goToCheckout}
-            goToAdmin={goToAdminLogin}
-          />
-        );
-
-      case 'checkout':
-        return (
-          <CheckoutCart 
-            cartItems={cartItems}
-            onClose={goToHome}
-            onRemoveItem={removeFromCart}
-            onUpdateQuantity={updateQuantity}
-            onOrderComplete={handleOrderComplete}
-          />
-        );
-
-      case 'thankyou':
-        return (
-          <ThankYouPage
-            orderData={orderData}
-            onBackToHome={handleBackToHomeFromThankYou}
-          />
-        );
-
-      case 'admin-login':
-        return (
-          <AdminLogin onLogin={handleAdminLogin} />
-        );
-
-      case 'admin':
-        // Double-check authentication before showing admin
-        if (!isAdminAuthenticated) {
-          setCurrentPage('admin-login');
-          return <AdminLogin onLogin={handleAdminLogin} />;
-        }
-        return (
-          <AdminDashboard onLogout={handleAdminLogout} />
-        );
-
-      default:
-        return (
-          <HomePage 
-            cartItems={cartItems}
-            cartCount={cartCount}
-            addToCart={addToCart}
-            goToCheckout={goToCheckout}
-            goToAdmin={goToAdminLogin}
-          />
-        );
+  // Protected route for admin
+  const ProtectedAdminRoute = ({ children }) => {
+    if (!isAdminAuthenticated) {
+      return <Navigate to="/admin" replace />;
     }
+    return children;
   };
 
   return (
     <div className="App">
-      {renderPage()}
+      <Routes>
+        {/* Home page */}
+        <Route 
+          path="/" 
+          element={
+            <HomePage 
+              cartItems={cartItems}
+              cartCount={cartCount}
+              addToCart={addToCart}
+              goToCheckout={goToCheckout}
+              goToAdmin={goToAdminLogin}
+            />
+          } 
+        />
+
+        {/* Product detail page - NEW! */}
+        <Route 
+          path="/product/:id" 
+          element={
+            <ProductDetailPage 
+              addToCart={addToCart}
+            />
+          } 
+        />
+
+        {/* Checkout page */}
+        <Route 
+          path="/checkout" 
+          element={
+            <CheckoutCart 
+              cartItems={cartItems}
+              onClose={goToHome}
+              onRemoveItem={removeFromCart}
+              onUpdateQuantity={updateQuantity}
+              onOrderComplete={handleOrderComplete}
+            />
+          } 
+        />
+
+        {/* Thank you page */}
+        <Route 
+          path="/thankyou" 
+          element={
+            <ThankYouPage
+              orderData={orderData}
+              onBackToHome={handleBackToHomeFromThankYou}
+            />
+          } 
+        />
+
+        {/* Admin login */}
+        <Route 
+          path="/admin" 
+          element={
+            isAdminAuthenticated ? 
+              <Navigate to="/admin/dashboard" replace /> : 
+              <AdminLogin onLogin={handleAdminLogin} />
+          } 
+        />
+
+        {/* Admin dashboard - protected */}
+        <Route 
+          path="/admin/dashboard" 
+          element={
+            <ProtectedAdminRoute>
+              <AdminDashboard onLogout={handleAdminLogout} />
+            </ProtectedAdminRoute>
+          } 
+        />
+
+        {/* Catch all - redirect to home */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
     </div>
+  );
+}
+
+function App() {
+  return (
+    <Router>
+      <AppContent />
+    </Router>
   );
 }
 

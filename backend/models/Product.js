@@ -38,9 +38,19 @@ const productSchema = new mongoose.Schema({
     enum: ['Shown', 'Hidden', 'Out of Stock'],
     default: 'Shown'
   },
+  // ✅ UPDATED: Support multiple images
   image: {
     type: String,
-    required: [true, 'Please provide an image URL']
+    required: [true, 'Please provide at least one image']
+  },
+  images: {
+    type: [String],
+    default: []
+  },
+  // ✅ NEW: Video URL support
+  videoUrl: {
+    type: String,
+    trim: true
   },
   description: {
     type: String,
@@ -49,9 +59,21 @@ const productSchema = new mongoose.Schema({
   adLink: {
     type: String,
     trim: true
+  },
+  // ✅ NEW: Rating system
+  rating: {
+    type: Number,
+    default: 0,
+    min: [0, 'Rating cannot be negative'],
+    max: [5, 'Rating cannot exceed 5']
+  },
+  numReviews: {
+    type: Number,
+    default: 0,
+    min: [0, 'Number of reviews cannot be negative']
   }
 }, {
-  timestamps: true  // Auto handles createdAt and updatedAt
+  timestamps: true
 });
 
 // Calculate discount before saving
@@ -65,6 +87,11 @@ productSchema.pre('save', function() {
   // Auto-set Out of Stock status
   if (this.stock === 0) {
     this.status = 'Out of Stock';
+  }
+  
+  // ✅ NEW: Combine main image with additional images
+  if (this.image && !this.images.includes(this.image)) {
+    this.images = [this.image, ...this.images.filter(img => img !== this.image)];
   }
 });
 

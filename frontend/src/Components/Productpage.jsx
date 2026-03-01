@@ -24,16 +24,17 @@ export default function ProductsPage() {
     originalPrice: '',
     stock: '',
     status: 'Shown',
-    image: '',
     description: '',
-    adLink: ''
+    adLink: '',
+    videoUrl: '', // ✅ NEW
+    rating: 0 // ✅ NEW
   });
 
-  // ✅ NEW: File upload states
-  const [imageFile, setImageFile] = useState(null);
-  const [imagePreview, setImagePreview] = useState('');
-  const [editImageFile, setEditImageFile] = useState(null);
-  const [editImagePreview, setEditImagePreview] = useState('');
+  // ✅ NEW: Multiple image upload states
+  const [imageFiles, setImageFiles] = useState([]);
+  const [imagePreviews, setImagePreviews] = useState([]);
+  const [editImageFiles, setEditImageFiles] = useState([]);
+  const [editImagePreviews, setEditImagePreviews] = useState([]);
 
   const categories = ['Accessories', 'Electronics', 'Bags', 'Fashion', 'Sports'];
   const statuses = ['Shown', 'Hidden', 'Out of Stock'];
@@ -59,90 +60,134 @@ export default function ProductsPage() {
     }
   };
 
-  // ✅ NEW: Handle image file selection for new product
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      // Validate file type
+  // ✅ NEW: Handle multiple image selection for new product
+  const handleImagesChange = (e) => {
+    const files = Array.from(e.target.files);
+    
+    if (files.length + imageFiles.length > 5) {
+      setValidationMessage('You can upload maximum 5 images');
+      setShowValidationModal(true);
+      return;
+    }
+
+    for (const file of files) {
       if (!file.type.startsWith('image/')) {
-        setValidationMessage('Please select an image file');
+        setValidationMessage('Please select only image files');
         setShowValidationModal(true);
         return;
       }
       
-      // Validate file size (5MB max)
       if (file.size > 5 * 1024 * 1024) {
-        setValidationMessage('Image size must be less than 5MB');
+        setValidationMessage('Each image must be less than 5MB');
         setShowValidationModal(true);
         return;
       }
-      
-      setImageFile(file);
-      
-      // Create preview
+    }
+
+    const newFiles = [...imageFiles, ...files];
+    setImageFiles(newFiles);
+
+    const newPreviews = [...imagePreviews];
+    files.forEach(file => {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setImagePreview(reader.result);
+        newPreviews.push(reader.result);
+        setImagePreviews([...newPreviews]);
       };
       reader.readAsDataURL(file);
-    }
+    });
   };
 
-  // ✅ NEW: Handle image file selection for edit product
-  const handleEditImageChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      // Validate file type
+  // ✅ NEW: Remove image from new product
+  const removeImage = (index) => {
+    const newFiles = imageFiles.filter((_, i) => i !== index);
+    const newPreviews = imagePreviews.filter((_, i) => i !== index);
+    setImageFiles(newFiles);
+    setImagePreviews(newPreviews);
+  };
+
+  // ✅ NEW: Handle multiple image selection for edit product
+  const handleEditImagesChange = (e) => {
+    const files = Array.from(e.target.files);
+    
+    const existingImagesCount = selectedProduct.images?.length || 0;
+    const totalImages = existingImagesCount + files.length + editImageFiles.length;
+    
+    if (totalImages > 5) {
+      setValidationMessage('You can have maximum 5 images total');
+      setShowValidationModal(true);
+      return;
+    }
+
+    for (const file of files) {
       if (!file.type.startsWith('image/')) {
-        setValidationMessage('Please select an image file');
+        setValidationMessage('Please select only image files');
         setShowValidationModal(true);
         return;
       }
       
-      // Validate file size (5MB max)
       if (file.size > 5 * 1024 * 1024) {
-        setValidationMessage('Image size must be less than 5MB');
+        setValidationMessage('Each image must be less than 5MB');
         setShowValidationModal(true);
         return;
       }
-      
-      setEditImageFile(file);
-      
-      // Create preview
+    }
+
+    const newFiles = [...editImageFiles, ...files];
+    setEditImageFiles(newFiles);
+
+    const newPreviews = [...editImagePreviews];
+    files.forEach(file => {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setEditImagePreview(reader.result);
+        newPreviews.push(reader.result);
+        setEditImagePreviews([...newPreviews]);
       };
       reader.readAsDataURL(file);
-    }
+    });
   };
 
-  // Filter products (frontend filtering for search)
+  // ✅ NEW: Remove new image from edit product
+  const removeEditImage = (index) => {
+    const newFiles = editImageFiles.filter((_, i) => i !== index);
+    const newPreviews = editImagePreviews.filter((_, i) => i !== index);
+    setEditImageFiles(newFiles);
+    setEditImagePreviews(newPreviews);
+  };
+
   const filteredProducts = products.filter(product => {
     const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesSearch;
   });
 
-  // ✅ UPDATED: Handle add product with file upload
+  // ✅ UPDATED: Handle add product with multiple images
   const handleAddProduct = async () => {
-    if (!newProduct.name || !newProduct.category || !newProduct.price || !newProduct.stock || !imageFile) {
-      setValidationMessage('Please fill in all required fields (including image)');
+    if (!newProduct.name || !newProduct.category || !newProduct.price || !newProduct.stock || imageFiles.length === 0) {
+      setValidationMessage('Please fill in all required fields (including at least one image)');
       setShowValidationModal(true);
       return;
     }
 
     try {
-      await productsAPI.create({
-        name: newProduct.name,
-        category: newProduct.category,
-        price: parseFloat(newProduct.price) || 0,
-        originalPrice: newProduct.originalPrice ? parseFloat(newProduct.originalPrice) : undefined,
-        stock: parseInt(newProduct.stock) || 0,
-        status: newProduct.status,
-        image: imageFile, // ✅ Send file instead of URL
-        description: newProduct.description || '',
-        adLink: newProduct.adLink || ''
+      const formData = new FormData();
+      formData.append('name', newProduct.name);
+      formData.append('category', newProduct.category);
+      formData.append('price', parseFloat(newProduct.price) || 0);
+      if (newProduct.originalPrice) {
+        formData.append('originalPrice', parseFloat(newProduct.originalPrice));
+      }
+      formData.append('stock', parseInt(newProduct.stock) || 0);
+      formData.append('status', newProduct.status);
+      formData.append('description', newProduct.description || '');
+      formData.append('adLink', newProduct.adLink || '');
+      formData.append('videoUrl', newProduct.videoUrl || '');
+      formData.append('rating', newProduct.rating || 0);
+
+      imageFiles.forEach((file) => {
+        formData.append('images', file);
       });
+
+      await productsAPI.create(formData);
       
       fetchProducts();
       setShowAddModal(false);
@@ -153,13 +198,13 @@ export default function ProductsPage() {
         originalPrice: '',
         stock: '',
         status: 'Shown',
-        image: '',
         description: '',
-        adLink: ''
+        adLink: '',
+        videoUrl: '',
+        rating: 0
       });
-      // ✅ NEW: Reset file states
-      setImageFile(null);
-      setImagePreview('');
+      setImageFiles([]);
+      setImagePreviews([]);
     } catch (error) {
       console.error('Error creating product:', error);
       setValidationMessage('Failed to create product. Please try again.');
@@ -167,7 +212,7 @@ export default function ProductsPage() {
     }
   };
 
-  // ✅ UPDATED: Handle edit product with optional file upload
+  // ✅ UPDATED: Handle edit product
   const handleEditProduct = async () => {
     if (!selectedProduct.name || !selectedProduct.category || !selectedProduct.price) {
       setValidationMessage('Please fill in all required fields');
@@ -176,30 +221,33 @@ export default function ProductsPage() {
     }
 
     try {
-      const updateData = {
-        name: selectedProduct.name,
-        category: selectedProduct.category,
-        price: parseFloat(selectedProduct.price) || 0,
-        originalPrice: selectedProduct.originalPrice ? parseFloat(selectedProduct.originalPrice) : undefined,
-        stock: parseInt(selectedProduct.stock) || 0,
-        status: selectedProduct.status,
-        description: selectedProduct.description || '',
-        adLink: selectedProduct.adLink || ''
-      };
-      
-      // ✅ NEW: Only include image if new file selected
-      if (editImageFile) {
-        updateData.image = editImageFile;
+      const formData = new FormData();
+      formData.append('name', selectedProduct.name);
+      formData.append('category', selectedProduct.category);
+      formData.append('price', parseFloat(selectedProduct.price) || 0);
+      if (selectedProduct.originalPrice) {
+        formData.append('originalPrice', parseFloat(selectedProduct.originalPrice));
       }
-      
-      await productsAPI.update(selectedProduct._id, updateData);
+      formData.append('stock', parseInt(selectedProduct.stock) || 0);
+      formData.append('status', selectedProduct.status);
+      formData.append('description', selectedProduct.description || '');
+      formData.append('adLink', selectedProduct.adLink || '');
+      formData.append('videoUrl', selectedProduct.videoUrl || '');
+      formData.append('rating', selectedProduct.rating || 0);
+
+      if (editImageFiles.length > 0) {
+        editImageFiles.forEach((file) => {
+          formData.append('images', file);
+        });
+      }
+
+      await productsAPI.update(selectedProduct._id, formData);
       
       fetchProducts();
       setShowEditModal(false);
       setSelectedProduct(null);
-      // ✅ NEW: Reset edit file states
-      setEditImageFile(null);
-      setEditImagePreview('');
+      setEditImageFiles([]);
+      setEditImagePreviews([]);
     } catch (error) {
       console.error('Error updating product:', error);
       setValidationMessage('Failed to update product. Please try again.');
@@ -230,12 +278,11 @@ export default function ProductsPage() {
     setShowViewModal(true);
   };
 
-  // ✅ UPDATED: Reset edit image states when opening edit modal
   const handleEditClick = (product) => {
     setSelectedProduct({ ...product });
     setShowEditModal(true);
-    setEditImageFile(null);
-    setEditImagePreview('');
+    setEditImageFiles([]);
+    setEditImagePreviews([]);
   };
 
   const getStatusColor = (status) => {
@@ -253,6 +300,13 @@ export default function ProductsPage() {
     return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
   };
 
+  const getImageUrl = (imagePath) => {
+    if (!imagePath) return 'https://via.placeholder.com/60';
+    return imagePath.startsWith('/uploads') 
+      ? `http://localhost:5000${imagePath}` 
+      : imagePath;
+  };
+
   return (
     <div style={{ fontFamily: "'Cairo', sans-serif" }}>
       <style>{`
@@ -268,7 +322,6 @@ export default function ProductsPage() {
         
         .page-subtitle { color: #999; font-size: 0.9rem; }
         
-        /* Filters Section */
         .filters-section { background: #2a2a2a; border-radius: 16px; padding: 1.5rem; margin-bottom: 2rem; border: 1px solid rgba(244, 237, 216, 0.1); }
         
         .filters-row { display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 1rem; align-items: center; }
@@ -293,7 +346,6 @@ export default function ProductsPage() {
         
         .add-product-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(255, 107, 53, 0.4); }
         
-        /* Products Table */
         .products-table-container { background: #2a2a2a; border-radius: 16px; padding: 1.5rem; border: 1px solid rgba(244, 237, 216, 0.1); overflow-x: auto; }
         
         .products-table { width: 100%; border-collapse: collapse; }
@@ -358,12 +410,11 @@ export default function ProductsPage() {
         
         .action-btn.delete:hover { background: #ff6b35; color: white; transform: scale(1.1); }
         
-        /* Modal */
         .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.8); display: flex; align-items: center; justify-content: center; z-index: 1000; animation: fadeIn 0.3s ease; }
         
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         
-        .modal-content { background: #2a2a2a; border-radius: 20px; padding: 2rem; max-width: 700px; width: 90%; max-height: 90vh; overflow-y: auto; border: 1px solid rgba(244, 237, 216, 0.1); animation: slideUp 0.3s ease; }
+        .modal-content { background: #2a2a2a; border-radius: 20px; padding: 2rem; max-width: 800px; width: 90%; max-height: 90vh; overflow-y: auto; border: 1px solid rgba(244, 237, 216, 0.1); animation: slideUp 0.3s ease; }
         
         @keyframes slideUp { from { transform: translateY(50px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
         
@@ -381,13 +432,13 @@ export default function ProductsPage() {
         
         .form-group.full { grid-column: 1 / -1; }
         
-        .form-label { display: block; color: #999; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.5rem; }
+        .modal-label { display: block; color: #c4d600; font-size: 0.85rem; font-weight: 700; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 1px; }
         
-        .form-input { width: 100%; padding: 0.8rem 1rem; background: #1a1a1a; border: 2px solid rgba(196, 214, 0, 0.2); border-radius: 10px; color: #f4edd8; font-size: 0.9rem; font-family: 'Cairo', sans-serif; transition: all 0.3s ease; }
+        .modal-input { width: 100%; padding: 0.8rem 1rem; background: #1a1a1a; border: 2px solid rgba(196, 214, 0, 0.2); border-radius: 10px; color: #f4edd8; font-size: 0.9rem; font-family: 'Cairo', sans-serif; transition: all 0.3s ease; }
         
-        .form-input:focus { outline: none; border-color: #c4d600; }
+        .modal-input:focus { outline: none; border-color: #c4d600; }
         
-        .form-textarea { resize: vertical; min-height: 80px; }
+        .modal-textarea { resize: vertical; min-height: 80px; }
         
         .modal-actions { display: flex; gap: 1rem; margin-top: 2rem; }
         
@@ -400,8 +451,155 @@ export default function ProductsPage() {
         .modal-btn.secondary { background: rgba(196, 214, 0, 0.1); color: #c4d600; border: 2px solid #c4d600; }
         
         .modal-btn.secondary:hover { background: #c4d600; color: #2a2a2a; }
+
+        /* ✅ NEW: Multiple Images Upload Styles */
+        .images-upload-section {
+          margin-bottom: 1.5rem;
+        }
+
+        .images-upload-label {
+          display: block;
+          color: #c4d600;
+          font-size: 0.85rem;
+          font-weight: 700;
+          margin-bottom: 0.8rem;
+          text-transform: uppercase;
+          letter-spacing: 1px;
+        }
+
+        .images-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+          gap: 1rem;
+          margin-bottom: 1rem;
+        }
+
+        .image-preview-item {
+          position: relative;
+          width: 100%;
+          height: 150px;
+          border-radius: 12px;
+          overflow: hidden;
+          border: 2px solid rgba(196, 214, 0, 0.3);
+          background: #1a1a1a;
+        }
+
+        .image-preview-img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+
+        .remove-image-btn {
+          position: absolute;
+          top: 8px;
+          right: 8px;
+          width: 28px;
+          height: 28px;
+          border-radius: 50%;
+          background: #ff6b35;
+          color: white;
+          border: none;
+          font-size: 1.2rem;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.3s ease;
+          z-index: 10;
+        }
+
+        .remove-image-btn:hover {
+          background: #e85d2a;
+          transform: scale(1.1);
+        }
+
+        .add-images-btn {
+          width: 100%;
+          height: 150px;
+          border: 2px dashed rgba(196, 214, 0, 0.3);
+          border-radius: 12px;
+          background: rgba(196, 214, 0, 0.05);
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          transition: all 0.3s ease;
+        }
+
+        .add-images-btn:hover {
+          border-color: #c4d600;
+          background: rgba(196, 214, 0, 0.1);
+        }
+
+        .add-images-icon {
+          font-size: 2.5rem;
+          margin-bottom: 0.5rem;
+          color: #c4d600;
+        }
+
+        .add-images-text {
+          color: #999;
+          font-size: 0.85rem;
+          text-align: center;
+        }
+
+        .add-images-hint {
+          color: #666;
+          font-size: 0.75rem;
+          margin-top: 0.3rem;
+        }
+
+        .file-input-hidden {
+          display: none;
+        }
+
+        /* ✅ NEW: Star Rating Styles */
+        .rating-section {
+          margin-bottom: 1.5rem;
+        }
+
+        .rating-label {
+          display: block;
+          color: #c4d600;
+          font-size: 0.85rem;
+          font-weight: 700;
+          margin-bottom: 0.8rem;
+          text-transform: uppercase;
+          letter-spacing: 1px;
+        }
+
+        .star-rating {
+          display: flex;
+          gap: 0.5rem;
+          font-size: 2.5rem;
+          cursor: pointer;
+        }
+
+        .star {
+          transition: all 0.2s ease;
+          cursor: pointer;
+        }
+
+        .star.filled {
+          color: #ff6b35;
+        }
+
+        .star.empty {
+          color: #444;
+        }
+
+        .star:hover {
+          transform: scale(1.1);
+        }
+
+        .rating-hint {
+          color: #666;
+          font-size: 0.75rem;
+          margin-top: 0.5rem;
+        }
         
-        /* View Modal */
         .product-view-header { display: flex; gap: 2rem; margin-bottom: 2rem; padding-bottom: 2rem; border-bottom: 1px solid rgba(244, 237, 216, 0.1); }
         
         .product-view-image { width: 200px; height: 200px; border-radius: 16px; object-fit: cover; box-shadow: 0 8px 24px rgba(0,0,0,0.3); }
@@ -435,101 +633,7 @@ export default function ProductsPage() {
         .loading-spinner { font-size: 2rem; margin-bottom: 1rem; animation: spin 1s linear infinite; }
         
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-
-        /* ✅ NEW: Image Upload Styles */
-        .image-upload-section {
-          margin-bottom: 1.2rem;
-        }
-
-        .image-upload-label {
-          display: block;
-          color: #c4d600;
-          font-size: 0.85rem;
-          font-weight: 700;
-          margin-bottom: 0.5rem;
-          text-transform: uppercase;
-          letter-spacing: 1px;
-        }
-
-        .image-upload-container {
-          border: 2px dashed rgba(196, 214, 0, 0.3);
-          border-radius: 12px;
-          padding: 1.5rem;
-          text-align: center;
-          background: rgba(196, 214, 0, 0.05);
-          cursor: pointer;
-          transition: all 0.3s ease;
-        }
-
-        .image-upload-container:hover {
-          border-color: #c4d600;
-          background: rgba(196, 214, 0, 0.1);
-        }
-
-        .image-upload-container.has-image {
-          padding: 0;
-          border: 2px solid rgba(196, 214, 0, 0.3);
-        }
-
-        .image-preview-container {
-          position: relative;
-          width: 100%;
-          height: 200px;
-          border-radius: 10px;
-          overflow: hidden;
-        }
-
-        .image-preview {
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
-        }
-
-        .image-preview-overlay {
-          position: absolute;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          background: rgba(0, 0, 0, 0.7);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          opacity: 0;
-          transition: opacity 0.3s ease;
-        }
-
-        .image-preview-container:hover .image-preview-overlay {
-          opacity: 1;
-        }
-
-        .change-image-text {
-          color: white;
-          font-weight: 700;
-          font-size: 0.9rem;
-        }
-
-        .upload-icon {
-          font-size: 2.5rem;
-          margin-bottom: 0.8rem;
-        }
-
-        .upload-text {
-          color: #999;
-          font-size: 0.85rem;
-          margin-bottom: 0.5rem;
-        }
-
-        .upload-hint {
-          color: #666;
-          font-size: 0.75rem;
-        }
-
-        .file-input-hidden {
-          display: none;
-        }
         
-        /* Responsive */
         @media (max-width: 1024px) {
           .filters-row { grid-template-columns: 1fr; }
           .form-row { grid-template-columns: 1fr; }
@@ -550,13 +654,21 @@ export default function ProductsPage() {
           
           .modal-content { padding: 1.5rem; max-width: 95%; }
           .modal-title { font-size: 1.5rem; }
-          .form-input { font-size: 16px; /* Prevents zoom on iOS */ }
+          .modal-input { font-size: 16px; }
           .actions-cell { gap: 0.3rem; }
           .action-btn { width: 28px; height: 28px; font-size: 0.9rem; }
           
           .product-view-image { width: 150px; height: 150px; }
           .product-view-name { font-size: 1.5rem; }
           .product-view-price { font-size: 1.5rem; }
+
+          .images-grid {
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+          }
+
+          .image-preview-item, .add-images-btn {
+            height: 120px;
+          }
         }
         
         @media (max-width: 480px) {
@@ -646,7 +758,7 @@ export default function ProductsPage() {
                     <td className="product-id">PRD-{product._id?.slice(-6) || 'N/A'}</td>
                     <td className="product-image-cell">
                       <img 
-                        src={product.image.startsWith('/uploads') ? `http://localhost:5000${product.image}` : product.image} 
+                        src={getImageUrl(product.image)} 
                         alt={product.name} 
                         className="product-table-image" 
                       />
@@ -725,10 +837,10 @@ export default function ProductsPage() {
 
             <div className="form-row">
               <div className="form-group">
-                <label className="form-label">Product Name *</label>
+                <label className="modal-label">Product Name *</label>
                 <input
                   type="text"
-                  className="form-input"
+                  className="modal-input"
                   value={newProduct.name}
                   onChange={(e) => setNewProduct({...newProduct, name: e.target.value})}
                   placeholder="Enter product name"
@@ -736,9 +848,9 @@ export default function ProductsPage() {
               </div>
 
               <div className="form-group">
-                <label className="form-label">Category *</label>
+                <label className="modal-label">Category *</label>
                 <select
-                  className="form-input"
+                  className="modal-input"
                   value={newProduct.category}
                   onChange={(e) => setNewProduct({...newProduct, category: e.target.value})}
                 >
@@ -752,10 +864,10 @@ export default function ProductsPage() {
 
             <div className="form-row">
               <div className="form-group">
-                <label className="form-label">Price *</label>
+                <label className="modal-label">Price *</label>
                 <input
                   type="number"
-                  className="form-input"
+                  className="modal-input"
                   value={newProduct.price}
                   onChange={(e) => setNewProduct({...newProduct, price: e.target.value})}
                   placeholder="299"
@@ -763,10 +875,10 @@ export default function ProductsPage() {
               </div>
 
               <div className="form-group">
-                <label className="form-label">Original Price (Optional)</label>
+                <label className="modal-label">Original Price (Optional)</label>
                 <input
                   type="number"
-                  className="form-input"
+                  className="modal-input"
                   value={newProduct.originalPrice}
                   onChange={(e) => setNewProduct({...newProduct, originalPrice: e.target.value})}
                   placeholder="399"
@@ -776,10 +888,10 @@ export default function ProductsPage() {
 
             <div className="form-row">
               <div className="form-group">
-                <label className="form-label">Stock *</label>
+                <label className="modal-label">Stock *</label>
                 <input
                   type="number"
-                  className="form-input"
+                  className="modal-input"
                   value={newProduct.stock}
                   onChange={(e) => setNewProduct({...newProduct, stock: e.target.value})}
                   placeholder="50"
@@ -787,9 +899,9 @@ export default function ProductsPage() {
               </div>
 
               <div className="form-group">
-                <label className="form-label">Status *</label>
+                <label className="modal-label">Status *</label>
                 <select
-                  className="form-input"
+                  className="modal-input"
                   value={newProduct.status}
                   onChange={(e) => setNewProduct({...newProduct, status: e.target.value})}
                 >
@@ -800,43 +912,92 @@ export default function ProductsPage() {
               </div>
             </div>
 
-            {/* ✅ NEW: File Upload Section for Add Product */}
+            {/* ✅ NEW: Multiple Images Upload Section */}
             <div className="form-group full">
-              <div className="image-upload-section">
-                <label className="image-upload-label">Product Image *</label>
-                <div 
-                  className={`image-upload-container ${imagePreview ? 'has-image' : ''}`}
-                  onClick={() => document.getElementById('image-upload').click()}
-                >
-                  {imagePreview ? (
-                    <div className="image-preview-container">
-                      <img src={imagePreview} alt="Preview" className="image-preview" />
-                      <div className="image-preview-overlay">
-                        <span className="change-image-text">Click to change image</span>
+              <div className="images-upload-section">
+                <label className="images-upload-label">Product Images (Max 5) *</label>
+                
+                <div className="images-grid">
+                  {imagePreviews.map((preview, index) => (
+                    <div key={index} className="image-preview-item">
+                      <img src={preview} alt={`Preview ${index + 1}`} className="image-preview-img" />
+                      <button 
+                        className="remove-image-btn"
+                        onClick={() => removeImage(index)}
+                        type="button"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                  
+                  {imageFiles.length < 5 && (
+                    <div 
+                      className="add-images-btn"
+                      onClick={() => document.getElementById('images-upload').click()}
+                    >
+                      <div className="add-images-icon">📸</div>
+                      <div className="add-images-text">
+                        {imageFiles.length === 0 ? 'Click to upload images' : 'Add more images'}
+                      </div>
+                      <div className="add-images-hint">
+                        {imageFiles.length}/5 images
                       </div>
                     </div>
-                  ) : (
-                    <>
-                      <div className="upload-icon">📸</div>
-                      <div className="upload-text">Click to upload image</div>
-                      <div className="upload-hint">JPEG, PNG, GIF or WEBP (Max 5MB)</div>
-                    </>
                   )}
                 </div>
+
                 <input
-                  id="image-upload"
+                  id="images-upload"
                   type="file"
                   className="file-input-hidden"
                   accept="image/*"
-                  onChange={handleImageChange}
+                  multiple
+                  onChange={handleImagesChange}
                 />
               </div>
             </div>
 
+            {/* ✅ NEW: Video URL Input */}
             <div className="form-group full">
-              <label className="form-label">Description</label>
+              <label className="modal-label">Video URL (Optional)</label>
+              <input
+                type="text"
+                className="modal-input"
+                value={newProduct.videoUrl}
+                onChange={(e) => setNewProduct({...newProduct, videoUrl: e.target.value})}
+                placeholder="https://www.youtube.com/embed/..."
+              />
+              <div style={{ fontSize: '0.75rem', color: '#666', marginTop: '0.5rem' }}>
+                YouTube or Vimeo embed URL
+              </div>
+            </div>
+
+            {/* ✅ NEW: Rating Selector */}
+            <div className="form-group full">
+              <div className="rating-section">
+                <label className="rating-label">Rating (Optional)</label>
+                <div className="star-rating">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <span
+                      key={star}
+                      className={`star ${star <= newProduct.rating ? 'filled' : 'empty'}`}
+                      onClick={() => setNewProduct({...newProduct, rating: star})}
+                    >
+                      ★
+                    </span>
+                  ))}
+                </div>
+                <div className="rating-hint">
+                  Click stars to set rating: {newProduct.rating}/5
+                </div>
+              </div>
+            </div>
+
+            <div className="form-group full">
+              <label className="modal-label">Description</label>
               <textarea
-                className="form-input form-textarea"
+                className="modal-input modal-textarea"
                 value={newProduct.description}
                 onChange={(e) => setNewProduct({...newProduct, description: e.target.value})}
                 placeholder="Product description..."
@@ -844,10 +1005,10 @@ export default function ProductsPage() {
             </div>
 
             <div className="form-group full">
-              <label className="form-label">Facebook Ad Link</label>
+              <label className="modal-label">Facebook Ad Link</label>
               <input
                 type="text"
-                className="form-input"
+                className="modal-input"
                 value={newProduct.adLink}
                 onChange={(e) => setNewProduct({...newProduct, adLink: e.target.value})}
                 placeholder="https://facebook.com/ads/..."
@@ -866,7 +1027,7 @@ export default function ProductsPage() {
         </div>
       )}
 
-      {/* View Product Modal */}
+      {/* View Product Modal - Same as before */}
       {showViewModal && selectedProduct && (
         <div className="modal-overlay" onClick={() => setShowViewModal(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
@@ -877,7 +1038,7 @@ export default function ProductsPage() {
 
             <div className="product-view-header">
               <img 
-                src={selectedProduct.image.startsWith('/uploads') ? `http://localhost:5000${selectedProduct.image}` : selectedProduct.image} 
+                src={getImageUrl(selectedProduct.image)} 
                 alt={selectedProduct.name} 
                 className="product-view-image" 
               />
@@ -923,6 +1084,24 @@ export default function ProductsPage() {
                 <div className="detail-value">{formatDate(selectedProduct.createdAt)}</div>
               </div>
 
+              {selectedProduct.rating > 0 && (
+                <div className="detail-item">
+                  <div className="detail-label">Rating</div>
+                  <div className="detail-value">
+                    {'★'.repeat(selectedProduct.rating)}{'☆'.repeat(5 - selectedProduct.rating)} ({selectedProduct.rating}/5)
+                  </div>
+                </div>
+              )}
+
+              {selectedProduct.videoUrl && (
+                <div className="detail-item">
+                  <div className="detail-label">Video URL</div>
+                  <div className="detail-value" style={{ fontSize: '0.8rem', wordBreak: 'break-all' }}>
+                    {selectedProduct.videoUrl}
+                  </div>
+                </div>
+              )}
+
               <div className="detail-item full">
                 <div className="detail-label">Description</div>
                 <div className="detail-value">{selectedProduct.description || 'No description'}</div>
@@ -940,6 +1119,22 @@ export default function ProductsPage() {
                   )}
                 </div>
               </div>
+
+              {selectedProduct.images && selectedProduct.images.length > 1 && (
+                <div className="detail-item full">
+                  <div className="detail-label">All Images ({selectedProduct.images.length})</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: '0.5rem', marginTop: '0.5rem' }}>
+                    {selectedProduct.images.map((img, index) => (
+                      <img 
+                        key={index} 
+                        src={getImageUrl(img)} 
+                        alt={`${selectedProduct.name} ${index + 1}`}
+                        style={{ width: '100%', height: '100px', objectFit: 'cover', borderRadius: '8px' }}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="modal-actions">
@@ -962,19 +1157,19 @@ export default function ProductsPage() {
 
             <div className="form-row">
               <div className="form-group">
-                <label className="form-label">Product Name *</label>
+                <label className="modal-label">Product Name *</label>
                 <input
                   type="text"
-                  className="form-input"
+                  className="modal-input"
                   value={selectedProduct.name}
                   onChange={(e) => setSelectedProduct({...selectedProduct, name: e.target.value})}
                 />
               </div>
 
               <div className="form-group">
-                <label className="form-label">Category *</label>
+                <label className="modal-label">Category *</label>
                 <select
-                  className="form-input"
+                  className="modal-input"
                   value={selectedProduct.category}
                   onChange={(e) => setSelectedProduct({...selectedProduct, category: e.target.value})}
                 >
@@ -987,20 +1182,20 @@ export default function ProductsPage() {
 
             <div className="form-row">
               <div className="form-group">
-                <label className="form-label">Price *</label>
+                <label className="modal-label">Price *</label>
                 <input
                   type="number"
-                  className="form-input"
+                  className="modal-input"
                   value={selectedProduct.price}
                   onChange={(e) => setSelectedProduct({...selectedProduct, price: parseFloat(e.target.value)})}
                 />
               </div>
 
               <div className="form-group">
-                <label className="form-label">Original Price</label>
+                <label className="modal-label">Original Price</label>
                 <input
                   type="number"
-                  className="form-input"
+                  className="modal-input"
                   value={selectedProduct.originalPrice || ''}
                   onChange={(e) => setSelectedProduct({...selectedProduct, originalPrice: parseFloat(e.target.value) || undefined})}
                 />
@@ -1009,19 +1204,19 @@ export default function ProductsPage() {
 
             <div className="form-row">
               <div className="form-group">
-                <label className="form-label">Stock *</label>
+                <label className="modal-label">Stock *</label>
                 <input
                   type="number"
-                  className="form-input"
+                  className="modal-input"
                   value={selectedProduct.stock}
                   onChange={(e) => setSelectedProduct({...selectedProduct, stock: parseInt(e.target.value)})}
                 />
               </div>
 
               <div className="form-group">
-                <label className="form-label">Status *</label>
+                <label className="modal-label">Status *</label>
                 <select
-                  className="form-input"
+                  className="modal-input"
                   value={selectedProduct.status}
                   onChange={(e) => setSelectedProduct({...selectedProduct, status: e.target.value})}
                 >
@@ -1032,52 +1227,123 @@ export default function ProductsPage() {
               </div>
             </div>
 
-            {/* ✅ NEW: File Upload Section for Edit Product */}
+            {/* ✅ NEW: Edit Images Section */}
             <div className="form-group full">
-              <div className="image-upload-section">
-                <label className="image-upload-label">Product Image</label>
-                <div 
-                  className={`image-upload-container has-image`}
-                  onClick={() => document.getElementById('edit-image-upload').click()}
-                >
-                  <div className="image-preview-container">
-                    <img 
-                      src={editImagePreview || (selectedProduct.image.startsWith('/uploads') ? `http://localhost:5000${selectedProduct.image}` : selectedProduct.image)} 
-                      alt="Preview" 
-                      className="image-preview" 
-                    />
-                    <div className="image-preview-overlay">
-                      <span className="change-image-text">Click to change image</span>
+              <div className="images-upload-section">
+                <label className="images-upload-label">Product Images</label>
+                
+                {/* Show existing images */}
+                {selectedProduct.images && selectedProduct.images.length > 0 && (
+                  <div>
+                    <div style={{ fontSize: '0.75rem', color: '#999', marginBottom: '0.5rem' }}>
+                      Current images ({selectedProduct.images.length}):
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: '0.5rem', marginBottom: '1rem' }}>
+                      {selectedProduct.images.map((img, index) => (
+                        <img 
+                          key={index} 
+                          src={getImageUrl(img)} 
+                          alt={`Current ${index + 1}`}
+                          style={{ width: '100%', height: '100px', objectFit: 'cover', borderRadius: '8px', border: '2px solid rgba(196, 214, 0, 0.3)' }}
+                        />
+                      ))}
                     </div>
                   </div>
+                )}
+
+                {/* Add new images */}
+                <div className="images-grid">
+                  {editImagePreviews.map((preview, index) => (
+                    <div key={index} className="image-preview-item">
+                      <img src={preview} alt={`New ${index + 1}`} className="image-preview-img" />
+                      <button 
+                        className="remove-image-btn"
+                        onClick={() => removeEditImage(index)}
+                        type="button"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                  
+                  {(editImageFiles.length + (selectedProduct.images?.length || 0)) < 5 && (
+                    <div 
+                      className="add-images-btn"
+                      onClick={() => document.getElementById('edit-images-upload').click()}
+                    >
+                      <div className="add-images-icon">📸</div>
+                      <div className="add-images-text">
+                        Add new images
+                      </div>
+                      <div className="add-images-hint">
+                        {editImageFiles.length + (selectedProduct.images?.length || 0)}/5 total
+                      </div>
+                    </div>
+                  )}
                 </div>
+
                 <input
-                  id="edit-image-upload"
+                  id="edit-images-upload"
                   type="file"
                   className="file-input-hidden"
                   accept="image/*"
-                  onChange={handleEditImageChange}
+                  multiple
+                  onChange={handleEditImagesChange}
                 />
-                <div style={{ fontSize: '0.75rem', color: '#999', marginTop: '0.5rem' }}>
-                  Leave unchanged to keep current image
+
+                <div style={{ fontSize: '0.75rem', color: '#666', marginTop: '0.5rem' }}>
+                  Upload new images to replace all existing images
+                </div>
+              </div>
+            </div>
+
+            {/* ✅ NEW: Edit Video URL */}
+            <div className="form-group full">
+              <label className="modal-label">Video URL (Optional)</label>
+              <input
+                type="text"
+                className="modal-input"
+                value={selectedProduct.videoUrl || ''}
+                onChange={(e) => setSelectedProduct({...selectedProduct, videoUrl: e.target.value})}
+                placeholder="https://www.youtube.com/embed/..."
+              />
+            </div>
+
+            {/* ✅ NEW: Edit Rating */}
+            <div className="form-group full">
+              <div className="rating-section">
+                <label className="rating-label">Rating (Optional)</label>
+                <div className="star-rating">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <span
+                      key={star}
+                      className={`star ${star <= (selectedProduct.rating || 0) ? 'filled' : 'empty'}`}
+                      onClick={() => setSelectedProduct({...selectedProduct, rating: star})}
+                    >
+                      ★
+                    </span>
+                  ))}
+                </div>
+                <div className="rating-hint">
+                  Current rating: {selectedProduct.rating || 0}/5
                 </div>
               </div>
             </div>
 
             <div className="form-group full">
-              <label className="form-label">Description</label>
+              <label className="modal-label">Description</label>
               <textarea
-                className="form-input form-textarea"
+                className="modal-input modal-textarea"
                 value={selectedProduct.description || ''}
                 onChange={(e) => setSelectedProduct({...selectedProduct, description: e.target.value})}
               />
             </div>
 
             <div className="form-group full">
-              <label className="form-label">Facebook Ad Link</label>
+              <label className="modal-label">Facebook Ad Link</label>
               <input
                 type="text"
-                className="form-input"
+                className="modal-input"
                 value={selectedProduct.adLink || ''}
                 onChange={(e) => setSelectedProduct({...selectedProduct, adLink: e.target.value})}
               />

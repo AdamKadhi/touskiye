@@ -1,7 +1,9 @@
 import React, { useState, useEffect  } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { productsAPI } from '../services/api';
 
 export default function HomePage({ cartItems, cartCount, addToCart, goToCheckout }) {
+  const navigate = useNavigate();
   const [notification, setNotification] = useState(null);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [showImageModal, setShowImageModal] = useState(false);
@@ -157,6 +159,11 @@ export default function HomePage({ cartItems, cartCount, addToCart, goToCheckout
   // ✅ NEW: Check if product is out of stock
   const isOutOfStock = (product) => {
     return product.stock === 0 || product.status === 'Out of Stock';
+  };
+
+  // ✅ NEW: Navigate to product detail page
+  const handleProductClick = (productId) => {
+    navigate(`/product/${productId}`);
   };
 
   if (loading) {
@@ -1200,10 +1207,14 @@ export default function HomePage({ cartItems, cartCount, addToCart, goToCheckout
         
         <div className="products-grid">
           {products.map((product) => (
-            <div key={product._id || product.id} className={`product-card ${isOutOfStock(product) ? 'out-of-stock' : ''}`}>
+            <div 
+              key={product._id || product.id} 
+              className={`product-card ${isOutOfStock(product) ? 'out-of-stock' : ''}`}
+              onClick={() => handleProductClick(product._id)}
+              style={{ cursor: 'pointer' }}
+            >
               <div 
                 className="product-image-container"
-                onClick={() => openImageModal(product)}
               >
                 <img 
   src={product.image.startsWith('/uploads') ? `http://localhost:5000${product.image}` : product.image} 
@@ -1230,7 +1241,6 @@ export default function HomePage({ cartItems, cartCount, addToCart, goToCheckout
               </div>
               <div className="product-info">
                 <h3 className="product-name">{product.name}</h3>
-                <p className="product-description">{product.description}</p>
                 <div className="product-footer">
                   <div className="product-price-section">
                     {product.originalPrice && product.originalPrice > product.price && (
@@ -1244,7 +1254,10 @@ export default function HomePage({ cartItems, cartCount, addToCart, goToCheckout
                   </div>
                   <button 
                     className="add-to-cart-btn"
-                    onClick={() => handleAddToCart(product)}
+                    onClick={(e) => { 
+                      e.stopPropagation(); 
+                      handleAddToCart(product); 
+                    }}
                     disabled={isOutOfStock(product)}
                   >
                     <span>{isOutOfStock(product) ? 'غير متوفر' : 'أضف للسلة'}</span>
@@ -1328,7 +1341,7 @@ export default function HomePage({ cartItems, cartCount, addToCart, goToCheckout
               onWheel={handleWheel}
             >
               <img 
-                src={selectedProduct.image.startsWith('/uploads') ? `http://localhost:5000${selectedProduct.image}` : selectedProduct.image} 
+                src={selectedProduct.image} 
                 alt={selectedProduct.name}
                 className={`modal-image ${zoomLevel > 1 ? 'zoomed' : ''}`}
                 style={{ 

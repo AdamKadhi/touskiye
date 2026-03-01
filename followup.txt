@@ -1,20 +1,2 @@
-----last update:
-3melt l file upload ki tzid l product w tekhdm jawha behi ki bch nzid
-----problem:
-fel home page ma tbench l image even fi my orders
-
-
-
-
-
-okay now i want to make some changes about the products,
-
-when i click to the product it takes me to a new component showing the product details:
--the images of the product (it was only one image now i want to add more depends on how many i added in admin dash) with sliding them with a arrow 
--the description
--rate section
--i can add a video also
-keep in the home page the same product card design only remove the description
-taking the user to this new component is by click on the product image or all card except the "اضف للسلة" button it stays the same functionality
-
-
+What to do:
+-i already talked with claude 

@@ -79,18 +79,22 @@ exports.getProduct = async (req, res) => {
 // @access  Private (Admin only)
 exports.createProduct = async (req, res) => {
   try {
-    const { name, category, price, originalPrice, stock, status, description, adLink } = req.body;
-
-    // Check if image was uploaded
-    if (!req.file) {
+    const { name, category, price, originalPrice, stock, status, description, adLink, videoUrl, rating, numReviews } = req.body;
+console.log('🔍 CREATE PRODUCT CALLED');
+    console.log('req.file:', req.file);
+    console.log('req.files:', req.files);
+    console.log('req.body:', req.body);
+    // ✅ UPDATED: Handle multiple images
+    if (!req.files || req.files.length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'Product image is required'
+        message: 'At least one product image is required'
       });
     }
 
-    // Create image URL path
-    const imageUrl = `/uploads/${req.file.filename}`;
+    // Get all uploaded image URLs
+    const imageUrls = req.files.map(file => `/uploads/${file.filename}`);
+    const mainImage = imageUrls[0]; // First image is the main image
 
     const product = await Product.create({
       name,
@@ -99,9 +103,13 @@ exports.createProduct = async (req, res) => {
       originalPrice: originalPrice || price,
       stock,
       status,
-      image: imageUrl,
+      image: mainImage,
+      images: imageUrls, // ✅ Store all images
       description,
-      adLink
+      adLink,
+      videoUrl, // ✅ NEW
+      rating: rating || 0, // ✅ NEW
+      numReviews: numReviews || 0 // ✅ NEW
     });
 
     res.status(201).json({
@@ -109,12 +117,14 @@ exports.createProduct = async (req, res) => {
       data: product
     });
   } catch (error) {
-    // Delete uploaded file if product creation fails
-    if (req.file) {
-      const filePath = path.join(__dirname, '../uploads', req.file.filename);
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
-      }
+    // Delete uploaded files if product creation fails
+    if (req.files) {
+      req.files.forEach(file => {
+        const filePath = path.join(__dirname, '../uploads', file.filename);
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
+      });
     }
 
     res.status(400).json({
@@ -141,18 +151,24 @@ exports.updateProduct = async (req, res) => {
 
     const updateData = { ...req.body };
 
-    // If new image is uploaded
-    if (req.file) {
-      // Delete old image file if it exists
-      if (product.image && product.image.startsWith('/uploads/')) {
-        const oldImagePath = path.join(__dirname, '..', product.image);
-        if (fs.existsSync(oldImagePath)) {
-          fs.unlinkSync(oldImagePath);
-        }
+    // ✅ UPDATED: If new images are uploaded
+    if (req.files && req.files.length > 0) {
+      // Delete old images
+      if (product.images && product.images.length > 0) {
+        product.images.forEach(imagePath => {
+          if (imagePath.startsWith('/uploads/')) {
+            const oldImagePath = path.join(__dirname, '..', imagePath);
+            if (fs.existsSync(oldImagePath)) {
+              fs.unlinkSync(oldImagePath);
+            }
+          }
+        });
       }
 
-      // Set new image URL
-      updateData.image = `/uploads/${req.file.filename}`;
+      // Set new images
+      const imageUrls = req.files.map(file => `/uploads/${file.filename}`);
+      updateData.image = imageUrls[0];
+      updateData.images = imageUrls;
     }
 
     product = await Product.findByIdAndUpdate(req.params.id, updateData, {
@@ -165,12 +181,14 @@ exports.updateProduct = async (req, res) => {
       data: product
     });
   } catch (error) {
-    // Delete uploaded file if update fails
-    if (req.file) {
-      const filePath = path.join(__dirname, '../uploads', req.file.filename);
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
-      }
+    // Delete uploaded files if update fails
+    if (req.files) {
+      req.files.forEach(file => {
+        const filePath = path.join(__dirname, '../uploads', file.filename);
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
+      });
     }
 
     res.status(400).json({
@@ -195,12 +213,16 @@ exports.deleteProduct = async (req, res) => {
       });
     }
 
-    // Delete product image file if it exists
-    if (product.image && product.image.startsWith('/uploads/')) {
-      const imagePath = path.join(__dirname, '..', product.image);
-      if (fs.existsSync(imagePath)) {
-        fs.unlinkSync(imagePath);
-      }
+    // ✅ UPDATED: Delete all product images
+    if (product.images && product.images.length > 0) {
+      product.images.forEach(imagePath => {
+        if (imagePath.startsWith('/uploads/')) {
+          const fullPath = path.join(__dirname, '..', imagePath);
+          if (fs.existsSync(fullPath)) {
+            fs.unlinkSync(fullPath);
+          }
+        }
+      });
     }
 
     await product.deleteOne();

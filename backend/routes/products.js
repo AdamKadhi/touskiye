@@ -16,14 +16,14 @@ router.get('/public', getPublicProducts);
 router.get('/:id', getProduct);
 
 // Protected routes (Admin only)
-router.use(protect); // All routes after this require authentication
+router.use(protect);
 
 router.route('/')
   .get(getProducts)
-  .post(upload.single('image'), createProduct); // Add multer middleware for image upload
+  .post(upload.array('images', 5), createProduct); // ✅ CHANGED: array instead of single
 
 router.route('/:id')
-  .put(upload.single('image'), updateProduct) // Add multer middleware for image upload
+  .put(upload.array('images', 5), updateProduct)   // ✅ CHANGED: array instead of single
   .delete(deleteProduct);
 
 module.exports = router;
