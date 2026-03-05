@@ -10,16 +10,14 @@ const {
 } = require('../controllers/orderController');
 const { protect } = require('../middleware/auth');
 
-// Public routes (for customer orders)
+// Public routes
 router.post('/', createOrder);
 
 // Protected routes (Admin only)
-router.use(protect);
-
-router.get('/', getOrders);
-router.get('/stats/overview', getOrderStats);
-router.get('/:id', getOrder);
-router.put('/:id', updateOrder);
-router.delete('/:id', deleteOrder);
+router.get('/stats/overview', protect, getOrderStats);
+router.get('/', protect, getOrders);
+router.get('/:id', protect, getOrder);
+router.put('/:id', protect, updateOrder);
+router.delete('/:id', protect, deleteOrder);
 
 module.exports = router;

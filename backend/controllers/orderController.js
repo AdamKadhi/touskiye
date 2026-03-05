@@ -6,22 +6,31 @@ const Product = require('../models/Product');
 // @access  Private (Admin only)
 exports.getOrders = async (req, res) => {
   try {
-    const { product, city, status, search, limit, page } = req.query;
+    const { status, search, limit, page, startDate, endDate } = req.query;
 
-    // Build query
     let query = {};
 
-    if (product) query.product = product;
-    if (city) query.city = city;
-    if (status) query.status = status;
+    // Filter by status
+    if (status && status !== 'all') {
+      query.status = status;
+    }
+
+    // Search by customer name, phone, or order number
     if (search) {
       query.$or = [
         { customerName: { $regex: search, $options: 'i' } },
-        { phone: { $regex: search, $options: 'i' } }
+        { phone: { $regex: search, $options: 'i' } },
+        { orderNumber: { $regex: search, $options: 'i' } }
       ];
     }
 
-    // Pagination
+    // Filter by date range
+    if (startDate || endDate) {
+      query.createdAt = {};
+      if (startDate) query.createdAt.$gte = new Date(startDate);
+      if (endDate) query.createdAt.$lte = new Date(endDate);
+    }
+
     const pageNum = parseInt(page, 10) || 1;
     const limitNum = parseInt(limit, 10) || 100;
     const skip = (pageNum - 1) * limitNum;
@@ -42,6 +51,7 @@ exports.getOrders = async (req, res) => {
       data: orders
     });
   } catch (error) {
+    console.error('Error fetching orders:', error);
     res.status(500).json({
       success: false,
       message: 'Server error',
@@ -55,7 +65,7 @@ exports.getOrders = async (req, res) => {
 // @access  Private (Admin only)
 exports.getOrder = async (req, res) => {
   try {
-    const order = await Order.findById(req.params.id);
+    const order = await Order.findById(req.params.id).populate('items.productId');
 
     if (!order) {
       return res.status(404).json({
@@ -69,6 +79,7 @@ exports.getOrder = async (req, res) => {
       data: order
     });
   } catch (error) {
+    console.error('Error fetching order:', error);
     res.status(500).json({
       success: false,
       message: 'Server error',
@@ -77,50 +88,105 @@ exports.getOrder = async (req, res) => {
   }
 };
 
-// @desc    Create order
+// @desc    Create new order
 // @route   POST /api/orders
-// @access  Public (Customer) / Private (Admin)
+// @access  Public
 exports.createOrder = async (req, res) => {
   try {
-    const { product, quantity } = req.body;
+    console.log('📦 Creating new order...');
+    console.log('Request body:', req.body);
 
-    // Find the product by name to check and update stock
-    const productDoc = await Product.findOne({ name: product });
+    const {
+      customerName,
+      phone,
+      city,
+      address,
+      items,
+      subtotal,
+      deliveryFee,
+      total,
+      notes,
+      paymentMethod
+    } = req.body;
 
-    if (!productDoc) {
-      return res.status(404).json({
-        success: false,
-        message: 'Product not found'
-      });
-    }
-
-    // Check if enough stock is available
-    if (productDoc.stock < quantity) {
+    // Validate required fields
+    if (!customerName || !phone || !city || !address) {
       return res.status(400).json({
         success: false,
-        message: `Insufficient stock. Only ${productDoc.stock} items available.`
+        message: 'Please provide all required customer information'
       });
     }
 
-    // Create the order
-    const order = await Order.create(req.body);
-
-    // Reduce stock
-    productDoc.stock -= quantity;
-
-    // Update product status if stock reaches 0
-    if (productDoc.stock === 0) {
-      productDoc.status = 'Out of Stock';
+    if (!items || items.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Order must contain at least one item'
+      });
     }
 
-    await productDoc.save();
+    // Validate stock availability for each item
+    for (const item of items) {
+      if (item.productId) {
+        const product = await Product.findById(item.productId);
+        
+        if (!product) {
+          return res.status(404).json({
+            success: false,
+            message: `Product ${item.name} not found`
+          });
+        }
+
+        if (product.stock < item.quantity) {
+          return res.status(400).json({
+            success: false,
+            message: `Insufficient stock for ${item.name}. Available: ${product.stock}, Requested: ${item.quantity}`
+          });
+        }
+      }
+    }
+
+    // Create order
+    const order = await Order.create({
+      customerName,
+      phone,
+      city,
+      address,
+      items,
+      subtotal: subtotal || total - (deliveryFee || 7),
+      deliveryFee: deliveryFee || 7,
+      total,
+      notes,
+      paymentMethod: paymentMethod || 'Cash on Delivery',
+      status: 'Pending',
+      paymentStatus: 'Pending'
+    });
+
+    // Update product stock
+    for (const item of items) {
+      if (item.productId) {
+        await Product.findByIdAndUpdate(item.productId, {
+          $inc: { stock: -item.quantity }
+        });
+
+        // Update status to Out of Stock if stock reaches 0
+        const updatedProduct = await Product.findById(item.productId);
+        if (updatedProduct.stock === 0) {
+          await Product.findByIdAndUpdate(item.productId, {
+            status: 'Out of Stock'
+          });
+        }
+      }
+    }
+
+    console.log('✅ Order created successfully:', order.orderNumber);
 
     res.status(201).json({
       success: true,
-      data: order,
-      message: 'Order created successfully'
+      message: 'Order created successfully',
+      data: order
     });
   } catch (error) {
+    console.error('❌ Error creating order:', error);
     res.status(400).json({
       success: false,
       message: 'Failed to create order',
@@ -143,32 +209,28 @@ exports.updateOrder = async (req, res) => {
       });
     }
 
-    // If quantity is being changed, update stock accordingly
-    if (req.body.quantity && req.body.quantity !== order.quantity) {
-      const productDoc = await Product.findOne({ name: order.product });
+    const { status } = req.body;
 
-      if (productDoc) {
-        const quantityDifference = req.body.quantity - order.quantity;
-
-        // Check if we have enough stock for the increase
-        if (quantityDifference > 0 && productDoc.stock < quantityDifference) {
-          return res.status(400).json({
-            success: false,
-            message: `Insufficient stock. Only ${productDoc.stock} more items available.`
-          });
+    // Update status timestamps
+    if (status && status !== order.status) {
+      if (status === 'Shipped' && !order.shippedAt) {
+        req.body.shippedAt = new Date();
+      }
+      if (status === 'Delivered' && !order.deliveredAt) {
+        req.body.deliveredAt = new Date();
+        req.body.paymentStatus = 'Paid'; // Assume paid on delivery
+      }
+      if (status === 'Cancelled' && !order.cancelledAt) {
+        req.body.cancelledAt = new Date();
+        
+        // Restore product stock if order is cancelled
+        for (const item of order.items) {
+          if (item.productId) {
+            await Product.findByIdAndUpdate(item.productId, {
+              $inc: { stock: item.quantity }
+            });
+          }
         }
-
-        // Update stock (if increasing order, reduce stock; if decreasing order, increase stock)
-        productDoc.stock -= quantityDifference;
-
-        // Update status based on stock
-        if (productDoc.stock === 0) {
-          productDoc.status = 'Out of Stock';
-        } else if (productDoc.stock > 0 && productDoc.status === 'Out of Stock') {
-          productDoc.status = 'Shown';
-        }
-
-        await productDoc.save();
       }
     }
 
@@ -179,9 +241,11 @@ exports.updateOrder = async (req, res) => {
 
     res.status(200).json({
       success: true,
+      message: 'Order updated successfully',
       data: order
     });
   } catch (error) {
+    console.error('Error updating order:', error);
     res.status(400).json({
       success: false,
       message: 'Failed to update order',
@@ -204,27 +268,25 @@ exports.deleteOrder = async (req, res) => {
       });
     }
 
-    // Restore stock when deleting an order
-    const productDoc = await Product.findOne({ name: order.product });
-
-    if (productDoc) {
-      productDoc.stock += order.quantity;
-
-      // Update status if stock is restored
-      if (productDoc.stock > 0 && productDoc.status === 'Out of Stock') {
-        productDoc.status = 'Shown';
+    // Restore product stock if order was not delivered
+    if (order.status !== 'Delivered' && order.status !== 'Cancelled') {
+      for (const item of order.items) {
+        if (item.productId) {
+          await Product.findByIdAndUpdate(item.productId, {
+            $inc: { stock: item.quantity }
+          });
+        }
       }
-
-      await productDoc.save();
     }
 
     await order.deleteOne();
 
     res.status(200).json({
       success: true,
-      message: 'Order deleted and stock restored'
+      message: 'Order deleted successfully'
     });
   } catch (error) {
+    console.error('Error deleting order:', error);
     res.status(500).json({
       success: false,
       message: 'Server error',
@@ -240,16 +302,17 @@ exports.getOrderStats = async (req, res) => {
   try {
     const totalOrders = await Order.countDocuments();
     const pendingOrders = await Order.countDocuments({ status: 'Pending' });
-    const shippingOrders = await Order.countDocuments({ status: 'Shipping' });
+    const processingOrders = await Order.countDocuments({ status: 'Processing' });
+    const shippedOrders = await Order.countDocuments({ status: 'Shipped' });
     const deliveredOrders = await Order.countDocuments({ status: 'Delivered' });
     const cancelledOrders = await Order.countDocuments({ status: 'Cancelled' });
 
-    // Calculate total revenue
+    // Calculate total revenue (delivered orders only)
     const revenueResult = await Order.aggregate([
-      { $match: { status: { $ne: 'Cancelled' } } },
-      { $group: { _id: null, totalRevenue: { $sum: '$total' } } }
+      { $match: { status: 'Delivered' } },
+      { $group: { _id: null, total: { $sum: '$total' } } }
     ]);
-    const totalRevenue = revenueResult.length > 0 ? revenueResult[0].totalRevenue : 0;
+    const totalRevenue = revenueResult.length > 0 ? revenueResult[0].total : 0;
 
     // Get recent orders
     const recentOrders = await Order.find()
@@ -261,15 +324,16 @@ exports.getOrderStats = async (req, res) => {
       data: {
         totalOrders,
         pendingOrders,
-        shippingOrders,
+        processingOrders,
+        shippedOrders,
         deliveredOrders,
         cancelledOrders,
         totalRevenue,
-        averageOrderValue: totalOrders > 0 ? totalRevenue / totalOrders : 0,
         recentOrders
       }
     });
   } catch (error) {
+    console.error('Error fetching order stats:', error);
     res.status(500).json({
       success: false,
       message: 'Server error',

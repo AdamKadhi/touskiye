@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ordersAPI, productsAPI } from '../services/api';
 import ConfirmModal from './ConfirmModal';
+import '../styles/AdminInterface.css'; 
 
 export default function OrdersPage() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -318,191 +319,9 @@ export default function OrdersPage() {
   };
 
   return (
+    <div className="admin-interface">
     <div style={{ fontFamily: "'Cairo', sans-serif" }}>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&family=Bebas+Neue&display=swap');
-        
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        
-        .orders-container { padding: 2rem; background: #1a1a1a; min-height: 100vh; }
-        
-        .orders-header { margin-bottom: 2rem; }
-        
-        .page-title { font-family: 'Bebas Neue', sans-serif; font-size: 2rem; color: #f4edd8; letter-spacing: 2px; margin-bottom: 0.5rem; }
-        
-        .page-subtitle { color: #999; font-size: 0.9rem; }
-        
-        /* Filters Section */
-        .filters-section { background: #2a2a2a; border-radius: 16px; padding: 1.5rem; margin-bottom: 2rem; border: 1px solid rgba(244, 237, 216, 0.1); }
-        
-        .filters-row { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr auto; gap: 1rem; align-items: center; }
-        
-        .search-box { position: relative; }
-        
-        .search-input { width: 100%; padding: 0.8rem 1rem 0.8rem 3rem; background: #1a1a1a; border: 2px solid rgba(196, 214, 0, 0.2); border-radius: 10px; color: #f4edd8; font-size: 0.9rem; font-family: 'Cairo', sans-serif; transition: all 0.3s ease; }
-        
-        .search-input:focus { outline: none; border-color: #c4d600; }
-        
-        .search-input::placeholder { color: #666; }
-        
-        .search-icon { position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: #999; font-size: 1.1rem; }
-        
-        .filter-select { padding: 0.8rem 1rem; background: #1a1a1a; border: 2px solid rgba(196, 214, 0, 0.2); border-radius: 10px; color: #f4edd8; font-size: 0.9rem; font-family: 'Cairo', sans-serif; cursor: pointer; transition: all 0.3s ease; }
-        
-        .filter-select:focus { outline: none; border-color: #c4d600; }
-        
-        .filter-select option { background: #2a2a2a; color: #f4edd8; }
-        
-        .add-order-btn { padding: 0.8rem 1.5rem; background: linear-gradient(135deg, #ff6b35, #e85d2a); color: white; border: none; border-radius: 10px; font-weight: 700; font-size: 0.9rem; cursor: pointer; transition: all 0.3s ease; font-family: 'Cairo', sans-serif; display: flex; align-items: center; gap: 0.5rem; white-space: nowrap; }
-        
-        .add-order-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(255, 107, 53, 0.4); }
-        
-        /* Orders Table */
-        .orders-table-container { background: #2a2a2a; border-radius: 16px; padding: 1.5rem; border: 1px solid rgba(244, 237, 216, 0.1); overflow-x: auto; }
-        
-        .orders-table { width: 100%; border-collapse: collapse; }
-        
-        .orders-table th { text-align: left; padding: 1rem; color: #999; font-size: 0.85rem; font-weight: 600; border-bottom: 1px solid rgba(244, 237, 216, 0.1); white-space: nowrap; }
-        
-        .orders-table td { text-align: left; padding: 1rem; color: #ccc; font-size: 0.9rem; border-bottom: 1px solid rgba(244, 237, 216, 0.05); }
-        
-        .orders-table tr:hover td { background: rgba(196, 214, 0, 0.05); }
-        
-        .order-id { color: #c4d600; font-weight: 700; }
-        
-        .product-cell { display: flex; align-items: center; gap: 0.8rem; }
-        
-        .product-image { width: 40px; height: 40px; border-radius: 8px; object-fit: cover; }
-        
-        .status-badge { padding: 0.4rem 0.8rem; border-radius: 20px; font-size: 0.75rem; font-weight: 600; display: inline-block; }
-        
-        .status-badge.delivered { background: rgba(196, 214, 0, 0.2); color: #c4d600; }
-        
-        .status-badge.pending { background: rgba(255, 193, 7, 0.2); color: #ffc107; }
-        
-        .status-badge.confirmed { background: rgba(100, 150, 255, 0.2); color: #6496ff; }
-        
-        .status-badge.cancelled { background: rgba(255, 107, 53, 0.2); color: #ff6b35; }
-        
-        .actions-cell { display: flex; gap: 0.5rem; }
-        
-        .action-btn { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 8px; cursor: pointer; transition: all 0.3s ease; border: none; font-size: 1rem; }
-        
-        .action-btn.view { background: rgba(100, 150, 255, 0.1); color: #6496ff; }
-        
-        .action-btn.view:hover { background: #6496ff; color: white; transform: scale(1.1); }
-        
-        .action-btn.edit { background: rgba(196, 214, 0, 0.1); color: #c4d600; }
-        
-        .action-btn.edit:hover { background: #c4d600; color: #2a2a2a; transform: scale(1.1); }
-        
-        .action-btn.delete { background: rgba(255, 107, 53, 0.1); color: #ff6b35; }
-        
-        .action-btn.delete:hover { background: #ff6b35; color: white; transform: scale(1.1); }
-        
-        /* Modal */
-        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.8); display: flex; align-items: center; justify-content: center; z-index: 1000; animation: fadeIn 0.3s ease; }
-        
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        
-        .modal-content { background: #2a2a2a; border-radius: 20px; padding: 2rem; max-width: 600px; width: 90%; max-height: 90vh; overflow-y: auto; border: 1px solid rgba(244, 237, 216, 0.1); animation: slideUp 0.3s ease; }
-        
-        @keyframes slideUp { from { transform: translateY(50px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-        
-        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
-        
-        .modal-title { font-family: 'Bebas Neue', sans-serif; font-size: 1.8rem; color: #f4edd8; letter-spacing: 2px; }
-        
-        .modal-close { width: 35px; height: 35px; display: flex; align-items: center; justify-content: center; background: rgba(255, 107, 53, 0.1); color: #ff6b35; border: none; border-radius: 50%; font-size: 1.5rem; cursor: pointer; transition: all 0.3s ease; }
-        
-        .modal-close:hover { background: #ff6b35; color: white; transform: rotate(90deg); }
-        
-        .form-group { margin-bottom: 1.2rem; }
-        
-        .form-label { display: block; color: #999; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.5rem; }
-        
-        .form-input { width: 100%; padding: 0.8rem 1rem; background: #1a1a1a; border: 2px solid rgba(196, 214, 0, 0.2); border-radius: 10px; color: #f4edd8; font-size: 0.9rem; font-family: 'Cairo', sans-serif; transition: all 0.3s ease; }
-        
-        .form-input:focus { outline: none; border-color: #c4d600; }
-        
-        .form-textarea { resize: vertical; min-height: 80px; }
-        
-        .admin-comment-section { margin-top: 1.5rem; padding-top: 1.5rem; border-top: 2px solid rgba(196, 214, 0, 0.1); }
-        
-        .admin-badge { display: inline-block; background: linear-gradient(135deg, #ff6b35, #e85d2a); color: white; padding: 3px 8px; border-radius: 6px; font-size: 0.7rem; font-weight: 700; margin-left: 0.5rem; }
-        
-        .modal-actions { display: flex; gap: 1rem; margin-top: 2rem; }
-        
-        .modal-btn { flex: 1; padding: 0.9rem; border: none; border-radius: 10px; font-weight: 700; font-size: 0.9rem; cursor: pointer; transition: all 0.3s ease; font-family: 'Cairo', sans-serif; }
-        
-        .modal-btn.primary { background: linear-gradient(135deg, #ff6b35, #e85d2a); color: white; }
-        
-        .modal-btn.primary:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(255, 107, 53, 0.4); }
-        
-        .modal-btn.secondary { background: rgba(196, 214, 0, 0.1); color: #c4d600; border: 2px solid #c4d600; }
-        
-        .modal-btn.secondary:hover { background: #c4d600; color: #2a2a2a; }
-        
-        /* View Modal */
-        .order-detail-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem; margin-top: 1.5rem; }
-        
-        .detail-item { background: #1a1a1a; padding: 1rem; border-radius: 10px; border: 1px solid rgba(196, 214, 0, 0.1); }
-        
-        .detail-label { color: #999; font-size: 0.8rem; font-weight: 600; margin-bottom: 0.5rem; }
-        
-        .detail-value { color: #f4edd8; font-size: 0.95rem; font-weight: 600; }
-        
-        .detail-item.full { grid-column: 1 / -1; }
-        
-        .detail-item.comment { background: rgba(255, 107, 53, 0.05); border: 1px solid rgba(255, 107, 53, 0.2); }
-        
-        .product-detail { display: flex; align-items: center; gap: 1rem; }
-        
-        .product-detail-image { width: 60px; height: 60px; border-radius: 10px; object-fit: cover; }
-        
-        .empty-state { text-align: center; padding: 3rem; color: #999; }
-        
-        .empty-icon { font-size: 3rem; margin-bottom: 1rem; }
-        
-        .loading-state { text-align: center; padding: 3rem; color: #999; }
-        
-        .loading-spinner { font-size: 2rem; margin-bottom: 1rem; animation: spin 1s linear infinite; }
-        
-        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        
-        /* Responsive */
-        @media (max-width: 1024px) {
-          .filters-row { grid-template-columns: 1fr; }
-          .order-detail-grid { grid-template-columns: 1fr; }
-          .form-row { grid-template-columns: 1fr; }
-        }
-        
-        @media (max-width: 768px) {
-          .orders-container { padding: 1rem; }
-          .filters-section { padding: 1rem; }
-          .filters-row { gap: 0.8rem; }
-          .add-order-btn { width: 100%; justify-content: center; }
-          
-          .orders-table-container { padding: 1rem; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-          .orders-table { min-width: 800px; font-size: 0.85rem; }
-          .orders-table th, .orders-table td { padding: 0.7rem 0.5rem; }
-          
-          .modal-content { padding: 1.5rem; max-width: 95%; }
-          .modal-title { font-size: 1.5rem; }
-          .form-input { font-size: 16px; /* Prevents zoom on iOS */ }
-          .actions-cell { gap: 0.3rem; }
-          .action-btn { width: 28px; height: 28px; font-size: 0.9rem; }
-        }
-        
-        @media (max-width: 480px) {
-          .orders-container { padding: 0.8rem; }
-          .page-title { font-size: 1.5rem; }
-          .filters-section { padding: 0.8rem; }
-          .modal-content { padding: 1rem; }
-          .product-cell { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
-          .product-image { width: 35px; height: 35px; }
-        }
-      `}</style>
+      
 
       <div className="orders-container">
         <div className="orders-header">
@@ -596,11 +415,31 @@ export default function OrdersPage() {
                     </td>
                     <td>
                       <div className="product-cell">
-                        <img src={order.productImage?.startsWith('/uploads') ? `http://localhost:5000${order.productImage}` : (order.productImage || 'https://via.placeholder.com/40')} alt={order.product} className="product-image" />
-                        <div>
-                          <div style={{ fontWeight: '600' }}>{order.product}</div>
-                          <div style={{ fontSize: '0.8rem', color: '#999' }}>Qty: {order.quantity}</div>
-                        </div>
+                        {order.items && order.items.length > 0 ? (
+                          <>
+                            <img 
+                              src={order.items[0].image?.startsWith('/uploads') 
+                                ? `http://localhost:5000${order.items[0].image}` 
+                                : (order.items[0].image || 'https://via.placeholder.com/40')
+                              } 
+                              alt={order.items[0].name} 
+                              className="product-image" 
+                            />
+                            <div>
+                              <div style={{ fontWeight: '600' }}>
+                                {order.items.length === 1 
+                                  ? order.items[0].name 
+                                  : `${order.items[0].name} +${order.items.length - 1} more`
+                                }
+                              </div>
+                              <div style={{ fontSize: '0.8rem', color: '#999' }}>
+                                Qty: {order.items.reduce((sum, item) => sum + (item.quantity || 1), 0)}
+                              </div>
+                            </div>
+                          </>
+                        ) : (
+                          <div>No items</div>
+                        )}
                       </div>
                     </td>
                     <td>
@@ -806,13 +645,43 @@ export default function OrdersPage() {
               </div>
 
               <div className="detail-item full">
-                <div className="detail-label">Product</div>
-                <div className="product-detail">
-                  <img src={selectedOrder.productImage?.startsWith('/uploads') ? `http://localhost:5000${selectedOrder.productImage}` : (selectedOrder.productImage || 'https://via.placeholder.com/60')} alt={selectedOrder.product} className="product-detail-image" />
-                  <div>
-                    <div className="detail-value">{selectedOrder.product}</div>
-                    <div style={{ color: '#999', fontSize: '0.85rem' }}>Quantity: {selectedOrder.quantity}</div>
-                  </div>
+                <div className="detail-label">Products</div>
+                <div className="products-list">
+                  {selectedOrder.items && selectedOrder.items.length > 0 ? (
+                    selectedOrder.items.map((item, index) => (
+                      <div 
+                        key={index} 
+                        className="product-detail" 
+                        style={{ 
+                          marginBottom: index < selectedOrder.items.length - 1 ? '1rem' : '0', 
+                          paddingBottom: index < selectedOrder.items.length - 1 ? '1rem' : '0', 
+                          borderBottom: index < selectedOrder.items.length - 1 ? '1px solid rgba(244,237,216,0.1)' : 'none' 
+                        }}
+                      >
+                        <img 
+                          src={item.image?.startsWith('/uploads') 
+                            ? `http://localhost:5000${item.image}` 
+                            : (item.image || 'https://via.placeholder.com/60')
+                          } 
+                          alt={item.name} 
+                          className="product-detail-image" 
+                        />
+                        <div style={{ flex: 1 }}>
+                          <div className="detail-value">{item.name}</div>
+                          <div style={{ color: '#999', fontSize: '0.85rem' }}>
+                            Quantity: {item.quantity || 1} × {item.price} DT = {(item.quantity || 1) * item.price} DT
+                          </div>
+                          {item.discount > 0 && (
+                            <div style={{ color: '#ff6b35', fontSize: '0.75rem', fontWeight: '600', marginTop: '0.25rem' }}>
+                              Discount: -{item.discount}%
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div>No items</div>
+                  )}
                 </div>
               </div>
 
@@ -1019,6 +888,6 @@ export default function OrdersPage() {
         cancelText=""
         type="warning"
       />
-    </div>
+    </div></div>
   );
 }
