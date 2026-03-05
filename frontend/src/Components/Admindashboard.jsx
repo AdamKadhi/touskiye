@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import OrdersPage from './Orderspage';
 import ProductsPage from './Productpage';
 import ConfirmModal from './ConfirmModal';
-
 export default function AdminDashboard({ onLogout }) {
   const [currentPage, setCurrentPage] = useState('overview');
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);

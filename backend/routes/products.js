@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const upload = require('../config/upload');
+const { uploadCombined } = require('../config/upload');
 const {
   getProducts,
   getProduct,
@@ -20,10 +20,12 @@ router.use(protect);
 
 router.route('/')
   .get(getProducts)
-  .post(upload.array('images', 5), createProduct); // ✅ CHANGED: array instead of single
+  // ✅ Accept up to 5 images + 1 video
+  .post(uploadCombined.array('files', 6), createProduct);
 
 router.route('/:id')
-  .put(upload.array('images', 5), updateProduct)   // ✅ CHANGED: array instead of single
+  // ✅ Accept up to 5 images + 1 video
+  .put(uploadCombined.array('files', 6), updateProduct)
   .delete(deleteProduct);
 
 module.exports = router;

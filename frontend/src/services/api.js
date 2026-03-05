@@ -48,9 +48,10 @@ export const productsAPI = {
   getPublic: () => api.get('/products/public'),
   getOne: (id) => api.get(`/products/${id}`),
   
-  // ✅ FIXED: Just pass FormData directly - ProductsPage creates it
+  // ✅ UPDATED: ProductsPage creates FormData, just pass it through
   create: (formData) => {
-    // ProductsPage already creates FormData, just send it
+    // FormData is already created in ProductsPage with 'files' field
+    // Just send it as-is
     return api.post('/products', formData, {
       headers: {
         'Content-Type': 'multipart/form-data'
@@ -58,9 +59,10 @@ export const productsAPI = {
     });
   },
   
-  // ✅ FIXED: Just pass FormData directly
+  // ✅ UPDATED: Same for update
   update: (id, formData) => {
-    // ProductsPage already creates FormData, just send it
+    // FormData is already created in ProductsPage with 'files' field
+    // Just send it as-is
     return api.put(`/products/${id}`, formData, {
       headers: {
         'Content-Type': 'multipart/form-data'

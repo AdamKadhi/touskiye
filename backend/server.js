@@ -142,6 +142,18 @@ const server = app.listen(PORT, () => {
     ╚══════════════════════════════════════╝
   `);
 });
+// Serve uploaded files (images and videos)
+app.use('/uploads/images', express.static(path.join(__dirname, 'uploads/images')));
+app.use('/uploads/videos', express.static(path.join(__dirname, 'uploads/videos')));
+
+// OR if you want to serve all uploads:
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// Update helmet configuration for video streaming
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+  crossOriginEmbedderPolicy: false // ✅ Allow video embedding
+}));
 
 // Handle unhandled promise rejections - DON'T EXIT, JUST LOG
 process.on('unhandledRejection', (err, promise) => {

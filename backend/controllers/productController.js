@@ -2,23 +2,49 @@ const Product = require('../models/Product');
 const path = require('path');
 const fs = require('fs');
 
+// Helper function to separate images and videos from uploaded files
+const separateFiles = (files) => {
+  const images = [];
+  const videos = [];
+  
+  if (files) {
+    files.forEach(file => {
+      if (file.mimetype.startsWith('image/')) {
+        images.push(file);
+      } else if (file.mimetype.startsWith('video/')) {
+        videos.push(file);
+      }
+    });
+  }
+  
+  return { images, videos };
+};
+
+// Helper function to delete file
+const deleteFile = (filePath) => {
+  if (filePath && (filePath.startsWith('/uploads/') || filePath.startsWith('\\uploads\\'))) {
+    const fullPath = path.join(__dirname, '..', filePath);
+    if (fs.existsSync(fullPath)) {
+      fs.unlinkSync(fullPath);
+    }
+  }
+};
+
 // @desc    Get all products
 // @route   GET /api/products
-// @access  Public (for customer view) / Private (for admin)
+// @access  Public (customer) / Private (admin)
 exports.getProducts = async (req, res) => {
   try {
     const { category, status, search, limit, page } = req.query;
 
-    // Build query
     let query = {};
 
     if (category) query.category = category;
     if (status) query.status = status;
     if (search) {
-      query.name = { $regex: search, $options: 'i' }; // Case-insensitive search
+      query.name = { $regex: search, $options: 'i' };
     }
 
-    // Pagination
     const pageNum = parseInt(page, 10) || 1;
     const limitNum = parseInt(limit, 10) || 100;
     const skip = (pageNum - 1) * limitNum;
@@ -79,23 +105,47 @@ exports.getProduct = async (req, res) => {
 // @access  Private (Admin only)
 exports.createProduct = async (req, res) => {
   try {
-    const { name, category, price, originalPrice, stock, status, description, adLink, videoUrl, rating, numReviews } = req.body;
-console.log('🔍 CREATE PRODUCT CALLED');
-    console.log('req.file:', req.file);
+    console.log('🔍 CREATE PRODUCT CALLED');
     console.log('req.files:', req.files);
     console.log('req.body:', req.body);
-    // ✅ UPDATED: Handle multiple images
-    if (!req.files || req.files.length === 0) {
+
+    const { name, category, price, originalPrice, stock, status, description, adLink, videoUrl, rating, numReviews } = req.body;
+
+    // Separate images and videos from uploaded files
+    const { images, videos } = separateFiles(req.files);
+
+    console.log('Images found:', images.length);
+    console.log('Videos found:', videos.length);
+
+    // Validate: At least one image required
+    if (images.length === 0) {
+      // Delete any uploaded files
+      if (req.files) {
+        req.files.forEach(file => {
+          const filePath = path.join(__dirname, '../uploads', file.fieldname === 'video' ? 'videos' : 'images', file.filename);
+          if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
+          }
+        });
+      }
+      
       return res.status(400).json({
         success: false,
         message: 'At least one product image is required'
       });
     }
 
-    // Get all uploaded image URLs
-    const imageUrls = req.files.map(file => `/uploads/${file.filename}`);
-    const mainImage = imageUrls[0]; // First image is the main image
+    // Create image URLs
+    const imageUrls = images.map(file => `/uploads/images/${file.filename}`);
+    const mainImage = imageUrls[0];
 
+    // Create video file path if video uploaded
+    let videoFilePath = null;
+    if (videos.length > 0) {
+      videoFilePath = `/uploads/videos/${videos[0].filename}`;
+    }
+
+    // Create product
     const product = await Product.create({
       name,
       category,
@@ -104,12 +154,13 @@ console.log('🔍 CREATE PRODUCT CALLED');
       stock,
       status,
       image: mainImage,
-      images: imageUrls, // ✅ Store all images
+      images: imageUrls,
+      videoFile: videoFilePath, // ✅ NEW: Uploaded video file
+      videoUrl: videoUrl || '', // ✅ KEEP: External video URL
       description,
       adLink,
-      videoUrl, // ✅ NEW
-      rating: rating || 0, // ✅ NEW
-      numReviews: numReviews || 0 // ✅ NEW
+      rating: rating || 0,
+      numReviews: numReviews || 0
     });
 
     res.status(201).json({
@@ -117,10 +168,13 @@ console.log('🔍 CREATE PRODUCT CALLED');
       data: product
     });
   } catch (error) {
+    console.error('Error creating product:', error);
+    
     // Delete uploaded files if product creation fails
     if (req.files) {
       req.files.forEach(file => {
-        const filePath = path.join(__dirname, '../uploads', file.filename);
+        const folder = file.mimetype.startsWith('image/') ? 'images' : 'videos';
+        const filePath = path.join(__dirname, `../uploads/${folder}`, file.filename);
         if (fs.existsSync(filePath)) {
           fs.unlinkSync(filePath);
         }
@@ -151,24 +205,35 @@ exports.updateProduct = async (req, res) => {
 
     const updateData = { ...req.body };
 
-    // ✅ UPDATED: If new images are uploaded
+    // If new files uploaded
     if (req.files && req.files.length > 0) {
-      // Delete old images
-      if (product.images && product.images.length > 0) {
-        product.images.forEach(imagePath => {
-          if (imagePath.startsWith('/uploads/')) {
-            const oldImagePath = path.join(__dirname, '..', imagePath);
-            if (fs.existsSync(oldImagePath)) {
-              fs.unlinkSync(oldImagePath);
-            }
-          }
-        });
+      const { images, videos } = separateFiles(req.files);
+
+      // Handle new images
+      if (images.length > 0) {
+        // Delete old images
+        if (product.images && product.images.length > 0) {
+          product.images.forEach(imagePath => {
+            deleteFile(imagePath);
+          });
+        }
+
+        // Set new images
+        const imageUrls = images.map(file => `/uploads/images/${file.filename}`);
+        updateData.image = imageUrls[0];
+        updateData.images = imageUrls;
       }
 
-      // Set new images
-      const imageUrls = req.files.map(file => `/uploads/${file.filename}`);
-      updateData.image = imageUrls[0];
-      updateData.images = imageUrls;
+      // Handle new video
+      if (videos.length > 0) {
+        // Delete old video file
+        if (product.videoFile) {
+          deleteFile(product.videoFile);
+        }
+
+        // Set new video
+        updateData.videoFile = `/uploads/videos/${videos[0].filename}`;
+      }
     }
 
     product = await Product.findByIdAndUpdate(req.params.id, updateData, {
@@ -184,7 +249,8 @@ exports.updateProduct = async (req, res) => {
     // Delete uploaded files if update fails
     if (req.files) {
       req.files.forEach(file => {
-        const filePath = path.join(__dirname, '../uploads', file.filename);
+        const folder = file.mimetype.startsWith('image/') ? 'images' : 'videos';
+        const filePath = path.join(__dirname, `../uploads/${folder}`, file.filename);
         if (fs.existsSync(filePath)) {
           fs.unlinkSync(filePath);
         }
@@ -213,16 +279,16 @@ exports.deleteProduct = async (req, res) => {
       });
     }
 
-    // ✅ UPDATED: Delete all product images
+    // Delete all product images
     if (product.images && product.images.length > 0) {
       product.images.forEach(imagePath => {
-        if (imagePath.startsWith('/uploads/')) {
-          const fullPath = path.join(__dirname, '..', imagePath);
-          if (fs.existsSync(fullPath)) {
-            fs.unlinkSync(fullPath);
-          }
-        }
+        deleteFile(imagePath);
       });
+    }
+
+    // ✅ NEW: Delete video file if exists
+    if (product.videoFile) {
+      deleteFile(product.videoFile);
     }
 
     await product.deleteOne();
@@ -245,7 +311,6 @@ exports.deleteProduct = async (req, res) => {
 // @access  Public
 exports.getPublicProducts = async (req, res) => {
   try {
-    // Show products with status "Shown" OR "Out of Stock"
     const products = await Product.find({ 
       status: { $in: ['Shown', 'Out of Stock'] }
     }).sort({ createdAt: -1 });

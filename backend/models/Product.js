@@ -38,16 +38,22 @@ const productSchema = new mongoose.Schema({
     enum: ['Shown', 'Hidden', 'Out of Stock'],
     default: 'Shown'
   },
-  // ✅ UPDATED: Support multiple images
+  // Main image (first image in images array)
   image: {
     type: String,
     required: [true, 'Please provide at least one image']
   },
+  // Multiple images
   images: {
     type: [String],
     default: []
   },
-  // ✅ NEW: Video URL support
+  // ✅ NEW: Video file path (uploaded video)
+  videoFile: {
+    type: String,
+    trim: true
+  },
+  // ✅ KEEP: Video URL (for YouTube/Vimeo embeds)
   videoUrl: {
     type: String,
     trim: true
@@ -60,7 +66,6 @@ const productSchema = new mongoose.Schema({
     type: String,
     trim: true
   },
-  // ✅ NEW: Rating system
   rating: {
     type: Number,
     default: 0,
@@ -89,7 +94,7 @@ productSchema.pre('save', function() {
     this.status = 'Out of Stock';
   }
   
-  // ✅ NEW: Combine main image with additional images
+  // Combine main image with additional images
   if (this.image && !this.images.includes(this.image)) {
     this.images = [this.image, ...this.images.filter(img => img !== this.image)];
   }

@@ -88,7 +88,13 @@ export default function ProductDetailPage({ addToCart }) {
       ? `http://localhost:5000${imagePath}` 
       : imagePath;
   };
-
+// ✅ Video URL helper
+const getVideoUrl = (videoPath) => {
+  if (!videoPath) return '';
+  return videoPath.startsWith('/uploads')
+    ? `http://localhost:5000${videoPath}`
+    : videoPath;
+};
   const isOutOfStock = product?.stock === 0 || product?.status === 'Out of Stock';
 
   if (loading) {
@@ -640,6 +646,17 @@ export default function ProductDetailPage({ addToCart }) {
             height: 70px;
           }
         }
+          /* Video Player Styles */
+.video-player-section { padding: 2rem 0; border-bottom: 1px solid rgba(244, 237, 216, 0.1); }
+.video-player-container { position: relative; width: 100%; border-radius: 16px; overflow: hidden; background: #000; box-shadow: 0 8px 24px rgba(0,0,0,0.3); }
+.video-player { width: 100%; max-height: 500px; display: block; }
+.video-iframe { width: 100%; height: 400px; border: none; border-radius: 16px; }
+.video-download-btn { margin-top: 1rem; padding: 0.8rem 1.5rem; background: linear-gradient(135deg, #c4d600, #ff6b35); color: #2a2a2a; border: none; border-radius: 25px; font-weight: 700; font-size: 0.9rem; cursor: pointer; transition: all 0.3s ease; display: inline-flex; align-items: center; gap: 0.5rem; }
+.video-download-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(196, 214, 0, 0.4); }
+@media (max-width: 768px) {
+  .video-iframe { height: 250px; }
+  .video-player { max-height: 300px; }
+}
       `}</style>
 
       {/* Navbar */}
@@ -760,9 +777,34 @@ export default function ProductDetailPage({ addToCart }) {
               <p className="description-text">{product.description}</p>
             </div>
           )}
+          {/* Video Player Section */}
+        {(product.videoFile || product.videoUrl) && (
+          <div className="video-player-section">
+            <h2 className="section-title">فيديو المنتج</h2>
+            {product.videoFile ? (
+              <div>
+                <div className="video-player-container">
+                  <video className="video-player" controls controlsList="nodownload" preload="metadata">
+                    <source src={getVideoUrl(product.videoFile)} type="video/mp4" />
+                    <source src={getVideoUrl(product.videoFile)} type="video/webm" />
+                    Your browser does not support the video tag.
+                  </video>
+                </div>
+                <a href={getVideoUrl(product.videoFile)} download className="video-download-btn">
+                  <span>📥</span>
+                  <span>تحميل الفيديو</span>
+                </a>
+              </div>
+            ) : product.videoUrl && (
+              <div className="video-player-container">
+                <iframe src={product.videoUrl} title={product.name} className="video-iframe" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen />
+              </div>
+            )}
+          </div>
+        )}
 
           {/* Video */}
-          {product.videoUrl && (
+          {/* {product.videoUrl && (
             <div className="video-section">
               <h2 className="section-title">فيديو المنتج</h2>
               <div className="video-container">
@@ -773,7 +815,7 @@ export default function ProductDetailPage({ addToCart }) {
                 />
               </div>
             </div>
-          )}
+          )} */}
 
           {/* Quantity */}
           {!isOutOfStock && (

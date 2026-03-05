@@ -36,6 +36,14 @@ export default function ProductsPage() {
   const [editImageFiles, setEditImageFiles] = useState([]);
   const [editImagePreviews, setEditImagePreviews] = useState([]);
 
+  // ✅ Video states
+const [videoFile, setVideoFile] = useState(null);
+const [videoPreview, setVideoPreview] = useState('');
+const [videoMode, setVideoMode] = useState('url');
+const [editVideoFile, setEditVideoFile] = useState(null);
+const [editVideoPreview, setEditVideoPreview] = useState('');
+const [editVideoMode, setEditVideoMode] = useState('url');
+
   const categories = ['Accessories', 'Electronics', 'Bags', 'Fashion', 'Sports'];
   const statuses = ['Shown', 'Hidden', 'Out of Stock'];
 
@@ -154,7 +162,56 @@ export default function ProductsPage() {
     setEditImageFiles(newFiles);
     setEditImagePreviews(newPreviews);
   };
+// ✅ Video handlers
+const handleVideoChange = (e) => {
+  const file = e.target.files[0];
+  if (file) {
+    const allowedTypes = ['video/mp4', 'video/webm', 'video/ogg', 'video/quicktime', 'video/x-msvideo'];
+    if (!allowedTypes.includes(file.type)) {
+      setValidationMessage('Please select a valid video file (MP4, WebM, OGG, MOV, AVI)');
+      setShowValidationModal(true);
+      return;
+    }
+    if (file.size > 50 * 1024 * 1024) {
+      setValidationMessage('Video size must be less than 50MB');
+      setShowValidationModal(true);
+      return;
+    }
+    setVideoFile(file);
+    setVideoPreview(URL.createObjectURL(file));
+  }
+};
 
+const handleEditVideoChange = (e) => {
+  const file = e.target.files[0];
+  if (file) {
+    const allowedTypes = ['video/mp4', 'video/webm', 'video/ogg', 'video/quicktime', 'video/x-msvideo'];
+    if (!allowedTypes.includes(file.type)) {
+      setValidationMessage('Please select a valid video file (MP4, WebM, OGG, MOV, AVI)');
+      setShowValidationModal(true);
+      return;
+    }
+    if (file.size > 50 * 1024 * 1024) {
+      setValidationMessage('Video size must be less than 50MB');
+      setShowValidationModal(true);
+      return;
+    }
+    setEditVideoFile(file);
+    setEditVideoPreview(URL.createObjectURL(file));
+  }
+};
+
+const removeVideo = () => {
+  setVideoFile(null);
+  setVideoPreview('');
+  if (videoPreview) URL.revokeObjectURL(videoPreview);
+};
+
+const removeEditVideo = () => {
+  setEditVideoFile(null);
+  setEditVideoPreview('');
+  if (editVideoPreview) URL.revokeObjectURL(editVideoPreview);
+};
   const filteredProducts = products.filter(product => {
     const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesSearch;
@@ -184,8 +241,16 @@ export default function ProductsPage() {
       formData.append('rating', newProduct.rating || 0);
 
       imageFiles.forEach((file) => {
-        formData.append('images', file);
-      });
+  formData.append('files', file); // Changed 'images' to 'files'
+});
+
+// ✅ Add video
+if (videoMode === 'upload' && videoFile) {
+  formData.append('files', videoFile);
+}
+setVideoFile(null);
+setVideoPreview('');
+setVideoMode('url');
 
       await productsAPI.create(formData);
       
@@ -236,10 +301,18 @@ export default function ProductsPage() {
       formData.append('rating', selectedProduct.rating || 0);
 
       if (editImageFiles.length > 0) {
-        editImageFiles.forEach((file) => {
-          formData.append('images', file);
-        });
-      }
+  editImageFiles.forEach((file) => {
+    formData.append('files', file); // Changed 'images' to 'files'
+  });
+}
+
+// ✅ Add video
+if (editVideoMode === 'upload' && editVideoFile) {
+  formData.append('files', editVideoFile);
+}
+setEditVideoFile(null);
+setEditVideoPreview('');
+setEditVideoMode('url');
 
       await productsAPI.update(selectedProduct._id, formData);
       
@@ -680,6 +753,20 @@ export default function ProductsPage() {
           .product-view-image { width: 120px; height: 120px; }
           .discount-label { font-size: 0.65rem; padding: 1px 4px; }
         }
+          /* Video Upload Styles */
+.video-section { margin-bottom: 1.5rem; }
+.video-mode-toggle { display: flex; gap: 1rem; margin-bottom: 1rem; }
+.mode-btn { flex: 1; padding: 0.7rem; background: #1a1a1a; border: 2px solid rgba(196, 214, 0, 0.2); border-radius: 10px; color: #999; font-weight: 600; cursor: pointer; transition: all 0.3s ease; font-family: 'Cairo', sans-serif; font-size: 0.85rem; }
+.mode-btn.active { background: rgba(196, 214, 0, 0.1); border-color: #c4d600; color: #c4d600; }
+.mode-btn:hover { border-color: #c4d600; }
+.video-upload-area { width: 100%; min-height: 200px; border: 2px dashed rgba(196, 214, 0, 0.3); border-radius: 12px; background: rgba(196, 214, 0, 0.05); display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; transition: all 0.3s ease; padding: 1.5rem; }
+.video-upload-area:hover { border-color: #c4d600; background: rgba(196, 214, 0, 0.1); }
+.video-upload-area.has-video { padding: 0; border-style: solid; }
+.video-preview-container { position: relative; width: 100%; height: 200px; border-radius: 10px; overflow: hidden; }
+.video-preview { width: 100%; height: 100%; object-fit: cover; }
+.video-upload-icon { font-size: 3rem; margin-bottom: 0.8rem; color: #c4d600; }
+.video-upload-text { color: #999; font-size: 0.9rem; margin-bottom: 0.5rem; text-align: center; }
+.video-upload-hint { color: #666; font-size: 0.75rem; text-align: center; }
       `}</style>
 
       <div className="products-container">
@@ -993,7 +1080,40 @@ export default function ProductsPage() {
                 </div>
               </div>
             </div>
-
+{/* Video Section */}
+<div className="form-group full">
+  <div className="video-section">
+    <label className="modal-label">Product Video (Optional)</label>
+    <div className="video-mode-toggle">
+      <button type="button" className={`mode-btn ${videoMode === 'url' ? 'active' : ''}`} onClick={() => setVideoMode('url')}>📺 Paste URL</button>
+      <button type="button" className={`mode-btn ${videoMode === 'upload' ? 'active' : ''}`} onClick={() => setVideoMode('upload')}>🎬 Upload File</button>
+    </div>
+    {videoMode === 'url' ? (
+      <div>
+        <input type="text" className="modal-input" value={newProduct.videoUrl} onChange={(e) => setNewProduct({...newProduct, videoUrl: e.target.value})} placeholder="https://www.youtube.com/embed/..." />
+        <div style={{ fontSize: '0.75rem', color: '#666', marginTop: '0.5rem' }}>YouTube or Vimeo embed URL</div>
+      </div>
+    ) : (
+      <div>
+        {videoPreview ? (
+          <div className="video-upload-area has-video">
+            <div className="video-preview-container">
+              <video src={videoPreview} controls className="video-preview" />
+              <button type="button" className="remove-image-btn" onClick={removeVideo} style={{ top: '8px', right: '8px' }}>×</button>
+            </div>
+          </div>
+        ) : (
+          <div className="video-upload-area" onClick={() => document.getElementById('video-upload').click()}>
+            <div className="video-upload-icon">🎬</div>
+            <div className="video-upload-text">Click to upload video</div>
+            <div className="video-upload-hint">MP4, WebM, MOV, AVI (Max 50MB)</div>
+          </div>
+        )}
+        <input id="video-upload" type="file" className="file-input-hidden" accept="video/*" onChange={handleVideoChange} />
+      </div>
+    )}
+  </div>
+</div>
             <div className="form-group full">
               <label className="modal-label">Description</label>
               <textarea
@@ -1329,7 +1449,42 @@ export default function ProductsPage() {
                 </div>
               </div>
             </div>
-
+{/* Edit Video Section */}
+<div className="form-group full">
+  <div className="video-section">
+    <label className="modal-label">Product Video (Optional)</label>
+    {(selectedProduct.videoFile || selectedProduct.videoUrl) && (
+      <div style={{ fontSize: '0.75rem', color: '#999', marginBottom: '0.5rem' }}>
+        Current: {selectedProduct.videoFile ? '📹 Uploaded' : '📺 URL'}
+      </div>
+    )}
+    <div className="video-mode-toggle">
+      <button type="button" className={`mode-btn ${editVideoMode === 'url' ? 'active' : ''}`} onClick={() => setEditVideoMode('url')}>📺 Paste URL</button>
+      <button type="button" className={`mode-btn ${editVideoMode === 'upload' ? 'active' : ''}`} onClick={() => setEditVideoMode('upload')}>🎬 Upload New</button>
+    </div>
+    {editVideoMode === 'url' ? (
+      <input type="text" className="modal-input" value={selectedProduct.videoUrl || ''} onChange={(e) => setSelectedProduct({...selectedProduct, videoUrl: e.target.value})} placeholder="https://www.youtube.com/embed/..." />
+    ) : (
+      <div>
+        {editVideoPreview ? (
+          <div className="video-upload-area has-video">
+            <div className="video-preview-container">
+              <video src={editVideoPreview} controls className="video-preview" />
+              <button type="button" className="remove-image-btn" onClick={removeEditVideo}>×</button>
+            </div>
+          </div>
+        ) : (
+          <div className="video-upload-area" onClick={() => document.getElementById('edit-video-upload').click()}>
+            <div className="video-upload-icon">🎬</div>
+            <div className="video-upload-text">Upload new video</div>
+            <div className="video-upload-hint">Will replace current</div>
+          </div>
+        )}
+        <input id="edit-video-upload" type="file" className="file-input-hidden" accept="video/*" onChange={handleEditVideoChange} />
+      </div>
+    )}
+  </div>
+</div>
             <div className="form-group full">
               <label className="modal-label">Description</label>
               <textarea
