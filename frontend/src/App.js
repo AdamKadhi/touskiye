@@ -132,6 +132,8 @@ function AppContent() {
           element={
             <ProductDetailPage 
               addToCart={addToCart}
+              cartCount={cartItems.length}  // ✅ Add this
+      goToCheckout={goToCheckout}
             />
           } 
         />

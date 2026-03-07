@@ -2459,3 +2459,232 @@
 }
 
 }
+/* ========================================
+   ADMIN PANEL - DRAG & DROP IMAGE ORDERING
+   Add this to AdminInterface.css
+   ======================================== */
+
+/* Image Previews Grid with Drag & Drop */
+.image-previews-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.image-preview-item {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 12px;
+  overflow: hidden;
+  cursor: move;
+  border: 3px solid #E9ECEF;
+  transition: all 0.3s ease;
+  background: #F8F9FA;
+}
+
+.image-preview-item:hover {
+  border-color: #FF9933;
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(255, 153, 51, 0.2);
+}
+
+.image-preview-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Order Badge (shows 1, 2, 3, 4...) */
+.image-order-badge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  background: #FF9933;
+  color: white;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.85rem;
+  z-index: 2;
+  box-shadow: 0 2px 8px rgba(255, 153, 51, 0.4);
+}
+
+/* Drag Handle */
+.drag-handle {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: rgba(44, 62, 80, 0.8);
+  color: white;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: move;
+  z-index: 2;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  font-size: 1.2rem;
+}
+
+.image-preview-item:hover .drag-handle {
+  opacity: 1;
+}
+
+/* Remove Image Button */
+.remove-image-btn {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  background: #E74C3C;
+  color: white;
+  border: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0;
+  transition: all 0.3s ease;
+  z-index: 2;
+  font-size: 1rem;
+}
+
+.image-preview-item:hover .remove-image-btn {
+  opacity: 1;
+}
+
+.remove-image-btn:hover {
+  background: #C0392B;
+  transform: scale(1.1);
+}
+
+/* Current Images Grid (for edit modal) */
+.current-images-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.current-image-item {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 2px solid #E9ECEF;
+  background: #F8F9FA;
+}
+
+.current-image-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.current-image-item .image-order-badge {
+  top: 4px;
+  left: 4px;
+  width: 24px;
+  height: 24px;
+  font-size: 0.75rem;
+}
+
+/* Video Preview Container */
+.video-preview-container {
+  margin-top: 1rem;
+  border: 2px solid #E9ECEF;
+  border-radius: 12px;
+  padding: 1rem;
+  background: #F8F9FA;
+}
+
+.video-preview {
+  width: 100%;
+  max-height: 400px;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+}
+
+.current-video-container {
+  margin-top: 1rem;
+  border: 2px solid #E9ECEF;
+  border-radius: 12px;
+  padding: 1rem;
+  background: #F8F9FA;
+}
+
+.remove-video-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  background: #E74C3C;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 0.9rem;
+}
+
+.remove-video-btn:hover {
+  background: #C0392B;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(231, 76, 60, 0.3);
+}
+
+/* Help Text */
+.help-text {
+  font-size: 0.85rem;
+  color: #6C757D;
+  margin-top: 0.25rem;
+  margin-bottom: 0.5rem;
+}
+
+/* File Input Styling */
+.file-input {
+  padding: 0.75rem;
+  border: 2px dashed #E9ECEF;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: block;
+  width: 100%;
+}
+
+.file-input:hover {
+  border-color: #FF9933;
+  background: rgba(255, 153, 51, 0.05);
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .image-previews-grid {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  }
+
+  .current-images-grid {
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  }
+}
+
+@media (max-width: 480px) {
+  .image-previews-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .current-images-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

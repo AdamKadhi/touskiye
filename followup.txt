@@ -1,6 +1,4 @@
 What to do:
--i already talked with claude about replacing video url with upload
--the add to cart button in productdetail should do the same as in the home page
 -the update of product when editing images should have control to remove or keep the old
 ones
--in checkout comp the image of product not showing
+-in productdetail page the quantity and two button they should be under the price

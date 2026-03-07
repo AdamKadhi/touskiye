@@ -27,7 +27,7 @@ export default function ProductsPage() {
     status: "Shown",
     description: "",
     adLink: "",
-    videoUrl: "", // ✅ NEW
+    // ❌ REMOVED: videoUrl
     rating: 0, // ✅ NEW
   });
 
@@ -36,14 +36,13 @@ export default function ProductsPage() {
   const [imagePreviews, setImagePreviews] = useState([]);
   const [editImageFiles, setEditImageFiles] = useState([]);
   const [editImagePreviews, setEditImagePreviews] = useState([]);
+  const [draggedIndex, setDraggedIndex] = useState(null); // ✅ For drag & drop
 
-  // ✅ Video states
+  // ✅ Video states (Upload only - no URL)
   const [videoFile, setVideoFile] = useState(null);
   const [videoPreview, setVideoPreview] = useState("");
-  const [videoMode, setVideoMode] = useState("url");
   const [editVideoFile, setEditVideoFile] = useState(null);
   const [editVideoPreview, setEditVideoPreview] = useState("");
-  const [editVideoMode, setEditVideoMode] = useState("url");
 
   const categories = [
     "Accessories",
@@ -119,6 +118,60 @@ export default function ProductsPage() {
     const newPreviews = imagePreviews.filter((_, i) => i !== index);
     setImageFiles(newFiles);
     setImagePreviews(newPreviews);
+  };
+
+  // ✅ NEW: Drag & Drop handlers for image reordering
+  const handleDragStart = (index) => {
+    setDraggedIndex(index);
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = (dropIndex) => {
+    if (draggedIndex === null) return;
+
+    const newFiles = [...imageFiles];
+    const newPreviews = [...imagePreviews];
+
+    const draggedFile = newFiles[draggedIndex];
+    const draggedPreview = newPreviews[draggedIndex];
+
+    newFiles.splice(draggedIndex, 1);
+    newPreviews.splice(draggedIndex, 1);
+
+    newFiles.splice(dropIndex, 0, draggedFile);
+    newPreviews.splice(dropIndex, 0, draggedPreview);
+
+    setImageFiles(newFiles);
+    setImagePreviews(newPreviews);
+    setDraggedIndex(null);
+  };
+
+  // ✅ NEW: Drag & Drop for edit images
+  const handleEditDragStart = (index) => {
+    setDraggedIndex(index);
+  };
+
+  const handleEditDrop = (dropIndex) => {
+    if (draggedIndex === null) return;
+
+    const newFiles = [...editImageFiles];
+    const newPreviews = [...editImagePreviews];
+
+    const draggedFile = newFiles[draggedIndex];
+    const draggedPreview = newPreviews[draggedIndex];
+
+    newFiles.splice(draggedIndex, 1);
+    newPreviews.splice(draggedIndex, 1);
+
+    newFiles.splice(dropIndex, 0, draggedFile);
+    newPreviews.splice(dropIndex, 0, draggedPreview);
+
+    setEditImageFiles(newFiles);
+    setEditImagePreviews(newPreviews);
+    setDraggedIndex(null);
   };
 
   // ✅ NEW: Handle multiple image selection for edit product
@@ -271,20 +324,19 @@ export default function ProductsPage() {
       formData.append("status", newProduct.status);
       formData.append("description", newProduct.description || "");
       formData.append("adLink", newProduct.adLink || "");
-      formData.append("videoUrl", newProduct.videoUrl || "");
+      // ❌ REMOVED: formData.append("videoUrl", ...)
       formData.append("rating", newProduct.rating || 0);
 
       imageFiles.forEach((file) => {
         formData.append("files", file); // Changed 'images' to 'files'
       });
 
-      // ✅ Add video
-      if (videoMode === "upload" && videoFile) {
+      // ✅ Add video (upload only)
+      if (videoFile) {
         formData.append("files", videoFile);
       }
       setVideoFile(null);
       setVideoPreview("");
-      setVideoMode("url");
 
       await productsAPI.create(formData);
 
@@ -299,7 +351,7 @@ export default function ProductsPage() {
         status: "Shown",
         description: "",
         adLink: "",
-        videoUrl: "",
+        // ❌ REMOVED: videoUrl
         rating: 0,
       });
       setImageFiles([]);
@@ -338,7 +390,7 @@ export default function ProductsPage() {
       formData.append("status", selectedProduct.status);
       formData.append("description", selectedProduct.description || "");
       formData.append("adLink", selectedProduct.adLink || "");
-      formData.append("videoUrl", selectedProduct.videoUrl || "");
+      // ❌ REMOVED: formData.append("videoUrl", ...)
       formData.append("rating", selectedProduct.rating || 0);
 
       if (editImageFiles.length > 0) {
@@ -347,13 +399,12 @@ export default function ProductsPage() {
         });
       }
 
-      // ✅ Add video
-      if (editVideoMode === "upload" && editVideoFile) {
+      // ✅ Add video (upload only)
+      if (editVideoFile) {
         formData.append("files", editVideoFile);
       }
       setEditVideoFile(null);
       setEditVideoPreview("");
-      setEditVideoMode("url");
 
       await productsAPI.update(selectedProduct._id, formData);
 
@@ -742,7 +793,16 @@ export default function ProductsPage() {
 
                   <div className="images-grid">
                     {imagePreviews.map((preview, index) => (
-                      <div key={index} className="image-preview-item">
+                      <div 
+                        key={index} 
+                        className="image-preview-item"
+                        draggable
+                        onDragStart={() => handleDragStart(index)}
+                        onDragOver={handleDragOver}
+                        onDrop={() => handleDrop(index)}
+                        style={{ cursor: 'move' }}
+                      >
+                        <div className="image-order-badge">{index + 1}</div>
                         <img
                           src={preview}
                           alt={`Preview ${index + 1}`}
@@ -789,29 +849,6 @@ export default function ProductsPage() {
                 </div>
               </div>
 
-              {/* ✅ NEW: Video URL Input */}
-              <div className="form-group full">
-                <label className="modal-label">Video URL (Optional)</label>
-                <input
-                  type="text"
-                  className="modal-input"
-                  value={newProduct.videoUrl}
-                  onChange={(e) =>
-                    setNewProduct({ ...newProduct, videoUrl: e.target.value })
-                  }
-                  placeholder="https://www.youtube.com/embed/..."
-                />
-                <div
-                  style={{
-                    fontSize: "0.75rem",
-                    color: "#666",
-                    marginTop: "0.5rem",
-                  }}
-                >
-                  YouTube or Vimeo embed URL
-                </div>
-              </div>
-
               {/* ✅ NEW: Rating Selector */}
               <div className="form-group full">
                 <div className="rating-section">
@@ -840,82 +877,41 @@ export default function ProductsPage() {
                   <label className="modal-label">
                     Product Video (Optional)
                   </label>
-                  <div className="video-mode-toggle">
-                    <button
-                      type="button"
-                      className={`mode-btn ${videoMode === "url" ? "active" : ""}`}
-                      onClick={() => setVideoMode("url")}
-                    >
-                      📺 Paste URL
-                    </button>
-                    <button
-                      type="button"
-                      className={`mode-btn ${videoMode === "upload" ? "active" : ""}`}
-                      onClick={() => setVideoMode("upload")}
-                    >
-                      🎬 Upload File
-                    </button>
-                  </div>
-                  {videoMode === "url" ? (
-                    <div>
-                      <input
-                        type="text"
-                        className="modal-input"
-                        value={newProduct.videoUrl}
-                        onChange={(e) =>
-                          setNewProduct({
-                            ...newProduct,
-                            videoUrl: e.target.value,
-                          })
-                        }
-                        placeholder="https://www.youtube.com/embed/..."
-                      />
-                      <div
-                        style={{
-                          fontSize: "0.75rem",
-                          color: "#666",
-                          marginTop: "0.5rem",
-                        }}
-                      >
-                        YouTube or Vimeo embed URL
+                  <div>
+                    {videoPreview ? (
+                      <div className="video-upload-area has-video">
+                        <div className="video-preview-container">
+                          <video
+                            src={videoPreview}
+                            controls
+                            className="video-preview"
+                          />
+                          <button
+                            type="button"
+                            className="remove-image-btn"
+                            onClick={removeVideo}
+                            style={{ top: "8px", right: "8px" }}
+                          >
+                            ×
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  ) : (
-                    <div>
-                      {videoPreview ? (
-                        <div className="video-upload-area has-video">
-                          <div className="video-preview-container">
-                            <video
-                              src={videoPreview}
-                              controls
-                              className="video-preview"
-                            />
-                            <button
-                              type="button"
-                              className="remove-image-btn"
-                              onClick={removeVideo}
-                              style={{ top: "8px", right: "8px" }}
-                            >
-                              ×
-                            </button>
-                          </div>
+                    ) : (
+                      <div
+                        className="video-upload-area"
+                        onClick={() =>
+                          document.getElementById("video-upload").click()
+                        }
+                      >
+                        <div className="video-upload-icon">🎬</div>
+                        <div className="video-upload-text">
+                          Click to upload video
                         </div>
-                      ) : (
-                        <div
-                          className="video-upload-area"
-                          onClick={() =>
-                            document.getElementById("video-upload").click()
-                          }
-                        >
-                          <div className="video-upload-icon">🎬</div>
-                          <div className="video-upload-text">
-                            Click to upload video
-                          </div>
-                          <div className="video-upload-hint">
-                            MP4, WebM, MOV, AVI (Max 50MB)
-                          </div>
+                        <div className="video-upload-hint">
+                          MP4, WebM, MOV, AVI (Max 50MB)
                         </div>
-                      )}
+                      </div>
+                    )}
                       <input
                         id="video-upload"
                         type="file"
@@ -924,7 +920,7 @@ export default function ProductsPage() {
                         onChange={handleVideoChange}
                       />
                     </div>
-                  )}
+                  
                 </div>
               </div>
               <div className="form-group full">
@@ -1324,7 +1320,16 @@ export default function ProductsPage() {
                   {/* Add new images */}
                   <div className="images-grid">
                     {editImagePreviews.map((preview, index) => (
-                      <div key={index} className="image-preview-item">
+                      <div 
+                        key={index} 
+                        className="image-preview-item"
+                        draggable
+                        onDragStart={() => handleEditDragStart(index)}
+                        onDragOver={handleDragOver}
+                        onDrop={() => handleEditDrop(index)}
+                        style={{ cursor: 'move' }}
+                      >
+                        <div className="image-order-badge">{index + 1}</div>
                         <img
                           src={preview}
                           alt={`New ${index + 1}`}
@@ -1423,13 +1428,13 @@ export default function ProductsPage() {
                   </div>
                 </div>
               </div>
-              {/* Edit Video Section */}
+              {/* Edit Video Section - Upload Only */}
               <div className="form-group full">
                 <div className="video-section">
                   <label className="modal-label">
                     Product Video (Optional)
                   </label>
-                  {(selectedProduct.videoFile || selectedProduct.videoUrl) && (
+                  {selectedProduct.videoFile && (
                     <div
                       style={{
                         fontSize: "0.75rem",
@@ -1437,83 +1442,51 @@ export default function ProductsPage() {
                         marginBottom: "0.5rem",
                       }}
                     >
-                      Current:{" "}
-                      {selectedProduct.videoFile ? "📹 Uploaded" : "📺 URL"}
+                      Current: 📹 Uploaded
                     </div>
                   )}
-                  <div className="video-mode-toggle">
-                    <button
-                      type="button"
-                      className={`mode-btn ${editVideoMode === "url" ? "active" : ""}`}
-                      onClick={() => setEditVideoMode("url")}
-                    >
-                      📺 Paste URL
-                    </button>
-                    <button
-                      type="button"
-                      className={`mode-btn ${editVideoMode === "upload" ? "active" : ""}`}
-                      onClick={() => setEditVideoMode("upload")}
-                    >
-                      🎬 Upload New
-                    </button>
-                  </div>
-                  {editVideoMode === "url" ? (
+                  <div>
+                    {editVideoPreview ? (
+                      <div className="video-upload-area has-video">
+                        <div className="video-preview-container">
+                          <video
+                            src={editVideoPreview}
+                            controls
+                            className="video-preview"
+                          />
+                          <button
+                            type="button"
+                            className="remove-image-btn"
+                            onClick={removeEditVideo}
+                          >
+                            ×
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div
+                        className="video-upload-area"
+                        onClick={() =>
+                          document.getElementById("edit-video-upload").click()
+                        }
+                      >
+                        <div className="video-upload-icon">🎬</div>
+                        <div className="video-upload-text">
+                          Upload new video
+                        </div>
+                        <div className="video-upload-hint">
+                          Will replace current
+                        </div>
+                      </div>
+                    )}
                     <input
-                      type="text"
-                      className="modal-input"
-                      value={selectedProduct.videoUrl || ""}
-                      onChange={(e) =>
-                        setSelectedProduct({
-                          ...selectedProduct,
-                          videoUrl: e.target.value,
-                        })
-                      }
-                      placeholder="https://www.youtube.com/embed/..."
+                      id="edit-video-upload"
+                      type="file"
+                      className="file-input-hidden"
+                      accept="video/*"
+                      onChange={handleEditVideoChange}
                     />
-                  ) : (
-                    <div>
-                      {editVideoPreview ? (
-                        <div className="video-upload-area has-video">
-                          <div className="video-preview-container">
-                            <video
-                              src={editVideoPreview}
-                              controls
-                              className="video-preview"
-                            />
-                            <button
-                              type="button"
-                              className="remove-image-btn"
-                              onClick={removeEditVideo}
-                            >
-                              ×
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div
-                          className="video-upload-area"
-                          onClick={() =>
-                            document.getElementById("edit-video-upload").click()
-                          }
-                        >
-                          <div className="video-upload-icon">🎬</div>
-                          <div className="video-upload-text">
-                            Upload new video
-                          </div>
-                          <div className="video-upload-hint">
-                            Will replace current
-                          </div>
-                        </div>
-                      )}
-                      <input
-                        id="edit-video-upload"
-                        type="file"
-                        className="file-input-hidden"
-                        accept="video/*"
-                        onChange={handleEditVideoChange}
-                      />
-                    </div>
-                  )}
+                  </div>
                 </div>
               </div>
               <div className="form-group full">
