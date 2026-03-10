@@ -189,9 +189,9 @@ exports.createProduct = async (req, res) => {
   }
 };
 
-// @desc    Update product
-// @route   PUT /api/products/:id
-// @access  Private (Admin only)
+// ✅ UPDATED updateProduct function
+// Replace the existing updateProduct function in productController.js
+
 exports.updateProduct = async (req, res) => {
   try {
     let product = await Product.findById(req.params.id);
@@ -205,23 +205,35 @@ exports.updateProduct = async (req, res) => {
 
     const updateData = { ...req.body };
 
+    // ✅ NEW: Handle existing images (reordered/deleted)
+    let finalImages = [];
+    
+    if (req.body.existingImages) {
+      try {
+        finalImages = JSON.parse(req.body.existingImages);
+        console.log('📸 Using existing images:', finalImages);
+      } catch (e) {
+        console.error('Error parsing existingImages:', e);
+        finalImages = product.images || [];
+      }
+    } else {
+      // If no existingImages sent, keep current images
+      finalImages = product.images || [];
+    }
+
     // If new files uploaded
     if (req.files && req.files.length > 0) {
       const { images, videos } = separateFiles(req.files);
 
-      // Handle new images
+      // Handle new images - ADD to existing, don't replace
       if (images.length > 0) {
-        // Delete old images
-        if (product.images && product.images.length > 0) {
-          product.images.forEach(imagePath => {
-            deleteFile(imagePath);
-          });
-        }
-
-        // Set new images
-        const imageUrls = images.map(file => `/uploads/images/${file.filename}`);
-        updateData.image = imageUrls[0];
-        updateData.images = imageUrls;
+        const newImageUrls = images.map(file => `/uploads/images/${file.filename}`);
+        
+        // Add new images to existing ones
+        finalImages = [...finalImages, ...newImageUrls];
+        
+        console.log('📸 Adding new images:', newImageUrls);
+        console.log('📸 Final images array:', finalImages);
       }
 
       // Handle new video
@@ -234,6 +246,12 @@ exports.updateProduct = async (req, res) => {
         // Set new video
         updateData.videoFile = `/uploads/videos/${videos[0].filename}`;
       }
+    }
+
+    // ✅ Update images in updateData
+    if (finalImages.length > 0) {
+      updateData.images = finalImages;
+      updateData.image = finalImages[0]; // First image = main image
     }
 
     product = await Product.findByIdAndUpdate(req.params.id, updateData, {

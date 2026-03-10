@@ -35,8 +35,31 @@ export default function OrdersPage() {
     comment: ''
   });
 
-  const cities = ['Tunis', 'Sfax', 'Sousse', 'Kairouan', 'Bizerte', 'Gabes', 'Ariana', 'Gafsa', 'Monastir', 'Ben Arous'];
-  const statuses = ['Pending', 'Confirmed', 'Delivered', 'Cancelled'];
+  const cities = ['Tunis',
+  'Ariana',
+  'Ben Arous',
+  'Manouba',
+  'Nabeul',
+  'Zaghouan',
+  'Bizerte',
+  'Béja',
+  'Jendouba',
+  'Kef',
+  'Siliana',
+  'Sousse',
+  'Monastir',
+  'Mahdia',
+  'Sfax',
+  'Kairouan',
+  'Kasserine',
+  'Sidi Bouzid',
+  'Gabès',
+  'Medenine',
+  'Tataouine',
+  'Gafsa',
+  'Tozeur',
+  'Kebili'];
+  const statuses = ['Pending', 'Confirmed', 'Delivered', 'Cancelled', 'Returned'];
   const dateFilters = [
     { label: 'All Time', value: 'all' },
     { label: 'Today', value: 'today' },
@@ -146,19 +169,37 @@ export default function OrdersPage() {
     try {
       const product = getProductByName(newOrder.product);
       
-      await ordersAPI.create({
+      if (!product) {
+        setValidationMessage('Selected product not found');
+        setShowValidationModal(true);
+        return;
+      }
+
+      // ✅ Convert to new backend format
+      const orderData = {
         customerName: newOrder.customerName,
         phone: newOrder.phone,
-        product: newOrder.product,
-        productImage: product?.image || newOrder.productImage,
-        quantity: parseInt(newOrder.quantity) || 1,
         city: newOrder.city,
         address: newOrder.address,
-        total: parseFloat(newOrder.total) || 0,
-        status: newOrder.status,
+        items: [{
+          productId: product._id,
+          name: product.name,
+          price: product.price,
+          quantity: parseInt(newOrder.quantity) || 1,
+          image: product.image,
+          originalPrice: product.originalPrice || product.price,
+          discount: product.discount || 0
+        }],
+        subtotal: parseFloat(newOrder.total) || 0,
+        deliveryFee: 7,
+        total: (parseFloat(newOrder.total) || 0) + 7,
         paymentMethod: newOrder.paymentMethod,
-        comment: newOrder.comment || ''
-      });
+        notes: newOrder.comment || ''
+      };
+
+      console.log('📦 Sending order data:', orderData);
+      
+      await ordersAPI.create(orderData);
       
       fetchOrders();
       setShowAddModal(false);
@@ -177,39 +218,40 @@ export default function OrdersPage() {
       });
     } catch (error) {
       console.error('Error creating order:', error);
-      setValidationMessage('Failed to create order. Please try again.');
+      setValidationMessage(error.response?.data?.message || 'Failed to create order. Please try again.');
       setShowValidationModal(true);
     }
   };
 
   const handleEditOrder = async () => {
-    if (!selectedOrder.customerName || !selectedOrder.phone || !selectedOrder.product || !selectedOrder.city || !selectedOrder.address) {
+    if (!selectedOrder.customerName || !selectedOrder.phone || !selectedOrder.city || !selectedOrder.address) {
       setValidationMessage('Please fill in all required fields');
       setShowValidationModal(true);
       return;
     }
 
     try {
-      await ordersAPI.update(selectedOrder._id, {
+      // ✅ Only send fields that should be updated (not items)
+      const updateData = {
         customerName: selectedOrder.customerName,
         phone: selectedOrder.phone,
-        product: selectedOrder.product,
-        productImage: selectedOrder.productImage,
-        quantity: parseInt(selectedOrder.quantity) || 1,
         city: selectedOrder.city,
         address: selectedOrder.address,
-        total: parseFloat(selectedOrder.total) || 0,
         status: selectedOrder.status,
         paymentMethod: selectedOrder.paymentMethod || 'Cash on Delivery',
-        comment: selectedOrder.comment || ''
-      });
+        notes: selectedOrder.notes || ''
+      };
+
+      console.log('📝 Updating order:', updateData);
+      
+      await ordersAPI.update(selectedOrder._id, updateData);
       
       fetchOrders();
       setShowEditModal(false);
       setSelectedOrder(null);
     } catch (error) {
       console.error('Error updating order:', error);
-      setValidationMessage('Failed to update order. Please try again.');
+      setValidationMessage(error.response?.data?.message || 'Failed to update order. Please try again.');
       setShowValidationModal(true);
     }
   };
@@ -230,6 +272,38 @@ export default function OrdersPage() {
       setValidationMessage('Failed to delete order. Please try again.');
       setShowValidationModal(true);
     }
+  };
+
+  // ✅ Quick action: Change order status
+  const handleQuickStatusChange = async (orderId, newStatus) => {
+    try {
+      await ordersAPI.update(orderId, { status: newStatus });
+      fetchOrders();
+    } catch (error) {
+      console.error('Error updating order status:', error);
+      setValidationMessage(error.response?.data?.message || 'Failed to update order status.');
+      setShowValidationModal(true);
+    }
+  };
+
+  // ✅ Quick action: Confirm order (Pending → Confirmed)
+  const handleConfirmOrder = (orderId) => {
+    handleQuickStatusChange(orderId, 'Confirmed');
+  };
+
+  // ✅ Quick action: Deliver order (Confirmed → Delivered)
+  const handleDeliverOrder = (orderId) => {
+    handleQuickStatusChange(orderId, 'Delivered');
+  };
+
+  // ✅ Quick action: Cancel order
+  const handleCancelOrder = (orderId) => {
+    handleQuickStatusChange(orderId, 'Cancelled');
+  };
+
+  // ✅ Quick action: Return order (Delivered → Returned)
+  const handleReturnOrder = (orderId) => {
+    handleQuickStatusChange(orderId, 'Returned');
   };
 
   const handleViewOrder = (order) => {
@@ -456,6 +530,56 @@ export default function OrdersPage() {
                     <td style={{ fontWeight: '700', color: '#f4edd8' }}>{order.total} DT</td>
                     <td>
                       <div className="actions-cell">
+                        {/* ✅ Quick Action Buttons - Based on Status */}
+                        {order.status === 'Pending' && (
+                          <>
+                            <button 
+                              className="action-btn confirm" 
+                              onClick={() => handleConfirmOrder(order._id)} 
+                              title="Confirm Order"
+                            >
+                              ✅
+                            </button>
+                            <button 
+                              className="action-btn cancel" 
+                              onClick={() => handleCancelOrder(order._id)} 
+                              title="Cancel Order"
+                            >
+                              ❌
+                            </button>
+                          </>
+                        )}
+
+                        {order.status === 'Confirmed' && (
+                          <>
+                            <button 
+                              className="action-btn deliver" 
+                              onClick={() => handleDeliverOrder(order._id)} 
+                              title="Mark as Delivered"
+                            >
+                              🚚
+                            </button>
+                            <button 
+                              className="action-btn cancel" 
+                              onClick={() => handleCancelOrder(order._id)} 
+                              title="Cancel Order"
+                            >
+                              ❌
+                            </button>
+                          </>
+                        )}
+
+                        {order.status === 'Delivered' && (
+                          <button 
+                            className="action-btn return" 
+                            onClick={() => handleReturnOrder(order._id)} 
+                            title="Mark as Returned"
+                          >
+                            ↩️
+                          </button>
+                        )}
+
+                        {/* Original Buttons - Always Visible */}
                         <button className="action-btn view" onClick={() => handleViewOrder(order)} title="View">
                           👁️
                         </button>
@@ -715,14 +839,14 @@ export default function OrdersPage() {
               </div>
 
               {/* Admin Comment in View Modal */}
-              {selectedOrder.comment && (
+              {selectedOrder.notes && (
                 <div className="detail-item full comment">
                   <div className="detail-label">
-                    Admin Comment
+                    Admin Notes
                     <span className="admin-badge">ADMIN ONLY</span>
                   </div>
                   <div className="detail-value" style={{ whiteSpace: 'pre-wrap' }}>
-                    {selectedOrder.comment || 'No comments'}
+                    {selectedOrder.notes || 'No notes'}
                   </div>
                 </div>
               )}
@@ -766,40 +890,43 @@ export default function OrdersPage() {
               />
             </div>
 
-            <div className="form-group">
-              <label className="form-label">Product *</label>
-              <select
-                className="form-input"
-                value={selectedOrder.product}
-                onChange={(e) => handleEditProductChange(e.target.value)}
-                disabled={loadingProducts}
-              >
-                {products.map(product => (
-                  <option key={product._id} value={product.name}>{product.name}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Quantity *</label>
-              <input
-                type="number"
-                className="form-input"
-                min="1"
-                value={selectedOrder.quantity}
-                onChange={(e) => setSelectedOrder({...selectedOrder, quantity: parseInt(e.target.value) || 1})}
-              />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Total Price (DT) *</label>
-              <input
-                type="number"
-                className="form-input"
-                value={selectedOrder.total}
-                onChange={(e) => setSelectedOrder({...selectedOrder, total: e.target.value})}
-              />
-            </div>
+            {/* ✅ Show order items (read-only) */}
+            {selectedOrder.items && selectedOrder.items.length > 0 && (
+              <div className="form-group">
+                <label className="form-label">Order Items (cannot be changed)</label>
+                <div style={{ 
+                  background: 'rgba(196, 214, 0, 0.05)', 
+                  padding: '1rem', 
+                  borderRadius: '8px',
+                  border: '1px solid rgba(196, 214, 0, 0.2)'
+                }}>
+                  {selectedOrder.items.map((item, index) => (
+                    <div key={index} style={{ 
+                      display: 'flex', 
+                      justifyContent: 'space-between',
+                      marginBottom: index < selectedOrder.items.length - 1 ? '0.5rem' : '0',
+                      paddingBottom: index < selectedOrder.items.length - 1 ? '0.5rem' : '0',
+                      borderBottom: index < selectedOrder.items.length - 1 ? '1px solid rgba(196, 214, 0, 0.1)' : 'none'
+                    }}>
+                      <span style={{ color: '#f4edd8' }}>{item.name} x{item.quantity}</span>
+                      <span style={{ color: '#c4d600', fontWeight: 'bold' }}>{item.price} DT</span>
+                    </div>
+                  ))}
+                  <div style={{ 
+                    marginTop: '0.75rem', 
+                    paddingTop: '0.75rem', 
+                    borderTop: '2px solid rgba(196, 214, 0, 0.3)',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    fontWeight: 'bold',
+                    fontSize: '1.1rem'
+                  }}>
+                    <span style={{ color: '#f4edd8' }}>Total:</span>
+                    <span style={{ color: '#c4d600' }}>{selectedOrder.total} DT</span>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="form-group">
               <label className="form-label">City *</label>
@@ -840,13 +967,13 @@ export default function OrdersPage() {
             <div className="admin-comment-section">
               <div className="form-group">
                 <label className="form-label">
-                  Admin Comment (Internal)
+                  Admin Notes (Internal)
                   <span className="admin-badge">ADMIN ONLY</span>
                 </label>
                 <textarea
                   className="form-input form-textarea"
-                  value={selectedOrder.comment || ''}
-                  onChange={(e) => setSelectedOrder({...selectedOrder, comment: e.target.value})}
+                  value={selectedOrder.notes || ''}
+                  onChange={(e) => setSelectedOrder({...selectedOrder, notes: e.target.value})}
                   placeholder="Add internal notes about this order"
                   rows="3"
                 />

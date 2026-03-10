@@ -223,6 +223,38 @@ export default function ProductsPage() {
     setEditImageFiles(newFiles);
     setEditImagePreviews(newPreviews);
   };
+
+  // ✅ NEW: Remove existing image from product
+  const removeExistingImage = (index) => {
+    const newImages = selectedProduct.images.filter((_, i) => i !== index);
+    setSelectedProduct({
+      ...selectedProduct,
+      images: newImages,
+      image: newImages[0] || "", // Update main image
+    });
+  };
+
+  // ✅ NEW: Reorder existing images
+  const handleExistingImageDragStart = (index) => {
+    setDraggedIndex(index);
+  };
+
+  const handleExistingImageDrop = (dropIndex) => {
+    if (draggedIndex === null) return;
+
+    const newImages = [...selectedProduct.images];
+    const draggedImage = newImages[draggedIndex];
+
+    newImages.splice(draggedIndex, 1);
+    newImages.splice(dropIndex, 0, draggedImage);
+
+    setSelectedProduct({
+      ...selectedProduct,
+      images: newImages,
+      image: newImages[0], // Update main image
+    });
+    setDraggedIndex(null);
+  };
   // ✅ Video handlers
   const handleVideoChange = (e) => {
     const file = e.target.files[0];
@@ -393,6 +425,12 @@ export default function ProductsPage() {
       // ❌ REMOVED: formData.append("videoUrl", ...)
       formData.append("rating", selectedProduct.rating || 0);
 
+      // ✅ Send existing images (reordered/deleted)
+      if (selectedProduct.images && selectedProduct.images.length > 0) {
+        formData.append("existingImages", JSON.stringify(selectedProduct.images));
+      }
+
+      // ✅ Add new image files
       if (editImageFiles.length > 0) {
         editImageFiles.forEach((file) => {
           formData.append("files", file); // Changed 'images' to 'files'
@@ -1277,47 +1315,64 @@ export default function ProductsPage() {
                 <div className="images-upload-section">
                   <label className="images-upload-label">Product Images</label>
 
-                  {/* Show existing images */}
+                  {/* Show existing images - NOW WITH DRAG & DROP AND DELETE */}
                   {selectedProduct.images &&
                     selectedProduct.images.length > 0 && (
                       <div>
                         <div
                           style={{
-                            fontSize: "0.75rem",
-                            color: "#999",
-                            marginBottom: "0.5rem",
+                            fontSize: "0.85rem",
+                            color: "#c4d600",
+                            marginBottom: "0.75rem",
+                            fontWeight: "600",
                           }}
                         >
-                          Current images ({selectedProduct.images.length}):
+                          Current Images ({selectedProduct.images.length}) - Drag to reorder
                         </div>
-                        <div
-                          style={{
-                            display: "grid",
-                            gridTemplateColumns:
-                              "repeat(auto-fill, minmax(100px, 1fr))",
-                            gap: "0.5rem",
-                            marginBottom: "1rem",
-                          }}
-                        >
+                        <div className="images-grid">
                           {selectedProduct.images.map((img, index) => (
-                            <img
+                            <div
                               key={index}
-                              src={getImageUrl(img)}
-                              alt={`Current ${index + 1}`}
-                              style={{
-                                width: "100%",
-                                height: "100px",
-                                objectFit: "cover",
-                                borderRadius: "8px",
-                                border: "2px solid rgba(196, 214, 0, 0.3)",
-                              }}
-                            />
+                              className="image-preview-item"
+                              draggable
+                              onDragStart={() => handleExistingImageDragStart(index)}
+                              onDragOver={handleDragOver}
+                              onDrop={() => handleExistingImageDrop(index)}
+                              style={{ cursor: 'move' }}
+                            >
+                              <div className="image-order-badge">{index + 1}</div>
+                              <img
+                                src={getImageUrl(img)}
+                                alt={`Current ${index + 1}`}
+                                className="image-preview-img"
+                              />
+                              <button
+                                className="remove-image-btn"
+                                onClick={() => removeExistingImage(index)}
+                                type="button"
+                              >
+                                ×
+                              </button>
+                            </div>
                           ))}
                         </div>
                       </div>
                     )}
 
                   {/* Add new images */}
+                  {editImagePreviews.length > 0 && (
+                    <div
+                      style={{
+                        fontSize: "0.85rem",
+                        color: "#c4d600",
+                        marginTop: "1rem",
+                        marginBottom: "0.75rem",
+                        fontWeight: "600",
+                      }}
+                    >
+                      New Images to Upload ({editImagePreviews.length}) - Drag to reorder
+                    </div>
+                  )}
                   <div className="images-grid">
                     {editImagePreviews.map((preview, index) => (
                       <div 
@@ -1377,30 +1432,13 @@ export default function ProductsPage() {
                   <div
                     style={{
                       fontSize: "0.75rem",
-                      color: "#666",
+                      color: "#999",
                       marginTop: "0.5rem",
                     }}
                   >
-                    Upload new images to replace all existing images
+                    💡 Tip: Drag existing images to reorder, click × to remove. First image = main product image.
                   </div>
                 </div>
-              </div>
-
-              {/* ✅ NEW: Edit Video URL */}
-              <div className="form-group full">
-                <label className="modal-label">Video URL (Optional)</label>
-                <input
-                  type="text"
-                  className="modal-input"
-                  value={selectedProduct.videoUrl || ""}
-                  onChange={(e) =>
-                    setSelectedProduct({
-                      ...selectedProduct,
-                      videoUrl: e.target.value,
-                    })
-                  }
-                  placeholder="https://www.youtube.com/embed/..."
-                />
               </div>
 
               {/* ✅ NEW: Edit Rating */}

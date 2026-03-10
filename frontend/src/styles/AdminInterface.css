@@ -2688,3 +2688,80 @@
     grid-template-columns: repeat(2, 1fr);
   }
 }
+/* ========================================
+   ORDERS PAGE - QUICK ACTION BUTTONS
+   ADD THIS TO THE END OF AdminInterface.css
+   ======================================== */
+
+/* Quick Action Buttons */
+.action-btn.confirm {
+  background: rgba(46, 213, 115, 0.15);
+  color: #2ed573;
+  border: 1px solid rgba(46, 213, 115, 0.3);
+}
+
+.action-btn.confirm:hover {
+  background: rgba(46, 213, 115, 0.25);
+  border-color: #2ed573;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(46, 213, 115, 0.3);
+}
+
+.action-btn.deliver {
+  background: rgba(93, 173, 226, 0.15);
+  color: #5dade2;
+  border: 1px solid rgba(93, 173, 226, 0.3);
+}
+
+.action-btn.deliver:hover {
+  background: rgba(93, 173, 226, 0.25);
+  border-color: #5dade2;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(93, 173, 226, 0.3);
+}
+
+.action-btn.cancel {
+  background: rgba(235, 77, 75, 0.15);
+  color: #eb4d4b;
+  border: 1px solid rgba(235, 77, 75, 0.3);
+}
+
+.action-btn.cancel:hover {
+  background: rgba(235, 77, 75, 0.25);
+  border-color: #eb4d4b;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(235, 77, 75, 0.3);
+}
+
+.action-btn.return {
+  background: rgba(255, 159, 64, 0.15);
+  color: #ff9f40;
+  border: 1px solid rgba(255, 159, 64, 0.3);
+}
+
+.action-btn.return:hover {
+  background: rgba(255, 159, 64, 0.25);
+  border-color: #ff9f40;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(255, 159, 64, 0.3);
+}
+
+/* Make actions cell wrap nicely */
+.actions-cell {
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1200px) {
+  .actions-cell {
+    gap: 0.25rem;
+  }
+  
+  .action-btn {
+    font-size: 0.85rem;
+    padding: 0.4rem 0.5rem;
+  }
+}
